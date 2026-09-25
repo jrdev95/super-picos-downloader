@@ -59,16 +59,6 @@ func (b *Bot) handleURL(message *tgbotapi.Message, link string) {
 	detectedPlatform := platform.Detect(link)
 
 	if detectedPlatform == platform.Unknown {
-		slog.Info(
-			"plataforma não suportada",
-			"url", link,
-			"chat_id", message.Chat.ID,
-		)
-
-		b.reply(
-			message,
-			"⚠️ O link foi detectado, mas essa plataforma ainda não é suportada.",
-		)
 		return
 	}
 
