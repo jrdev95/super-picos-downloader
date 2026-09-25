@@ -5,13 +5,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/jrdev95/super-picos-downloader/internal/downloader"
+	"github.com/jrdev95/super-picos-downloader/internal/executil"
 	"github.com/jrdev95/super-picos-downloader/internal/media"
 	"github.com/jrdev95/super-picos-downloader/internal/platform"
 )
@@ -69,7 +69,7 @@ func (s *Strategy) Download(
 		rawURL,
 	}
 
-	cmd := exec.CommandContext(
+	cmd := executil.CommandContext(
 		ctx,
 		s.path,
 		args...,
