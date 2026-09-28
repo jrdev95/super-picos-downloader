@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -12,6 +13,7 @@ import (
 const maxMediaGroupSize = 10
 
 func (b *Bot) sendResult(
+	ctx context.Context,
 	message *tgbotapi.Message,
 	result *media.Result,
 ) error {
@@ -29,6 +31,15 @@ func (b *Bot) sendResult(
 			err,
 		)
 	}
+
+	compressionCtx, cancel := context.WithTimeout(ctx, compressionTimeout)
+	defer cancel()
+	prepared, cleanup, err := prepareVideos(compressionCtx, result, runFFmpeg)
+	defer cleanup()
+	if err != nil {
+		return err
+	}
+	result = prepared
 
 	if len(result.Items) == 1 {
 		return b.sendSingle(

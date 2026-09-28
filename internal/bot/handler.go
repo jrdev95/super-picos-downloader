@@ -200,7 +200,8 @@ func (b *Bot) processDownload(
 		"album", result.IsAlbum(),
 	)
 
-	if err := b.sendResult(message, result); err != nil {
+	sendStarted := time.Now()
+	if err := b.sendResult(parentCtx, message, result); err != nil {
 		slog.Error(
 			"falha ao enviar mídia",
 			"error", err,
@@ -209,13 +210,14 @@ func (b *Bot) processDownload(
 
 		b.reply(
 			message,
-			"❌ A mídia foi baixada, mas não consegui enviá-la pelo Telegram.",
+			sendErrorMessage(err),
 		)
 		return
 	}
 
 	slog.Info(
 		"mídia enviada com sucesso",
+		"prepare_and_send_elapsed", time.Since(sendStarted),
 		"platform", result.Platform,
 		"items", len(result.Items),
 		"chat_id", message.Chat.ID,
