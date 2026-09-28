@@ -1,122 +1,76 @@
 # Super Picos Downloader
 
-Bot do Telegram escrito em Go para baixar mídias de links enviados no chat e responder com a mídia correspondente.
-
-O projeto prioriza comportamento previsível, limpeza automática dos arquivos temporários, múltiplas estratégias de download e execução multiplataforma.
-
-## Status
-
-A aplicação foi validada em três ambientes:
-
-- Linux `amd64`
-- Windows `amd64`
-- Android `arm64` via Termux
-
-Também foram validados os respectivos métodos de inicialização automática.
+Bot do Telegram em Go que baixa mídias de links e responde no próprio chat. Validado em Windows e Linux `amd64` e Android `arm64` via Termux.
 
 ## Plataformas suportadas
 
-| Plataforma | Suporte atual | Estratégia principal |
+| Plataforma | Conteúdo | Estratégia |
 | --- | --- | --- |
-| TikTok | Vídeo e carrossel de fotos | `yt-dlp` + `gallery-dl` |
-| Instagram | Foto, vídeo, Reel e carrossel | `gallery-dl` + cookies, com fallback `yt-dlp` |
-| Threads | Foto, vídeo e carrossel | Downloader próprio em Go |
-| X / Twitter | Foto, vídeo e múltiplas mídias | `gallery-dl` + fallback `yt-dlp` |
-| YouTube Shorts | Vídeo | `yt-dlp` |
-| Reddit | Vídeo e foto única | `yt-dlp` + fallback RSS |
-| Erome | Foto e vídeo | Downloader próprio em Go |
+| TikTok | Vídeos e carrosséis de fotos | `yt-dlp` + `gallery-dl` |
+| Instagram | Fotos, vídeos, Reels e carrosséis | `gallery-dl` + cookies, com fallback `yt-dlp` |
+| Threads | Fotos, vídeos e carrosséis | Downloader próprio |
+| X / Twitter | Fotos, vídeos e álbuns | `gallery-dl` + fallback `yt-dlp` |
+| YouTube | Apenas Shorts | `yt-dlp` |
+| Reddit | Vídeo ou foto única | `yt-dlp` + RSS |
+| Erome | Fotos e vídeos | Downloader próprio |
 
-### Limitações conhecidas
+Galerias do Reddit ainda têm limitações. Conteúdos privados, removidos ou que exigem autenticação podem falhar. No Instagram, os cookies devem usar o formato Netscape/Mozilla, sem depender do perfil local do navegador.
 
-- Galerias do Reddit ainda não são suportadas de forma confiável. O RSS público não fornece todas as imagens e o endpoint JSON pode bloquear acesso anônimo.
-- A Bot API oficial do Telegram limita uploads multipart a 10 MB para fotos e 50 MB para outros arquivos, incluindo vídeos. Arquivos acima desses limites podem falhar no envio.
-- Um Telegram Bot API Server próprio, em modo local, permite uploads de até 2000 MB. Esse modo não faz parte da instalação padrão deste projeto por enquanto.
+## Funcionamento e limites
 
-Referências oficiais:
+- Responde à mensagem original e mostra um status temporário durante o download.
+- Descarta mensagens pendentes ao iniciar e processa os novos links por fila, com múltiplos workers.
+- Preserva ordem e legendas dos álbuns, dividindo-os em grupos de até 10 mídias, sem grupos unitários.
+- Vídeos de até 50.000.000 bytes seguem sem recompressão. Acima disso, tenta reduzir para **até 48 MB**, com no máximo três tentativas usando ffmpeg.
+- A compressão usa `veryfast`, limita a maior dimensão e ajusta novas tentativas pelo tamanho obtido. Pode reduzir a qualidade, mas não corta a duração.
+- Prepara todos os vídeos antes de enviar o álbum. Se não atingir a margem segura, informa o problema e não envia o resultado.
+- Cada download tem prazo de 3 minutos; a preparação dos vídeos tem prazo separado de 10 minutos para o conjunto.
+- Remove os arquivos temporários ao terminar, inclusive em caso de erro. Os logs incluem os tempos de compressão e de preparação/envio.
 
-- Telegram Bot API: <https://core.telegram.org/bots/api>
-- Telegram Bot API Server: <https://github.com/tdlib/telegram-bot-api>
+Fotos não são recomprimidas e continuam sujeitas aos limites da [Bot API oficial](https://core.telegram.org/bots/api). Um [servidor local da Bot API](https://github.com/tdlib/telegram-bot-api) não faz parte da configuração padrão.
 
-## Comportamento do bot
+## Requisitos e configuração
 
-- Processa somente links recebidos enquanto o bot está rodando.
-- Descarta updates pendentes existentes antes de iniciar o polling normal.
-- Responde à mensagem original no Telegram.
-- Exibe uma mensagem temporária durante o download.
-- Envia 2 ou mais mídias como álbum.
-- Divide álbuns com mais de 10 itens sem criar um grupo contendo apenas 1 mídia.
-- Usa fila de jobs e múltiplos workers.
-- Cada download possui timeout de 3 minutos.
-- Remove o workspace temporário assim que o processamento termina, inclusive em caso de erro.
-- Responde a interrupção de terminal e `SIGTERM`, permitindo encerramento mais limpo em Linux/Termux.
+- Go **1.22.2+** para executar pelo código-fonte ou compilar.
+- `yt-dlp`, `gallery-dl` e `ffmpeg` disponíveis no `PATH` do processo do bot.
+- FFmpeg com os encoders `libx264` e `aac` para recompressão.
 
-## Requisitos
-
-### Aplicação
-
-- Go 1.22 ou superior para compilar a partir do código-fonte.
-
-### Ferramentas externas em tempo de execução
-
-- `yt-dlp`
-- `ffmpeg`
-- `gallery-dl`
-
-As ferramentas precisam estar disponíveis no `PATH` do processo que executa o bot.
-
-## Configuração
-
-Copie o exemplo:
+Na pasta do projeto ou do pacote extraído, crie o `.env` apenas na primeira configuração:
 
 ```bash
+# Linux / Termux
 cp .env.example .env
 ```
 
-No Windows PowerShell:
-
 ```powershell
+# Windows / PowerShell
 Copy-Item .env.example .env
 ```
 
-Configure:
+Edite o arquivo:
 
 ```env
-BOT_TOKEN=SEU_TOKEN_DO_TELEGRAM
+BOT_TOKEN=SEU_TOKEN_DO_BOTFATHER
 MAX_WORKERS=3
 INSTAGRAM_COOKIES_FILE=secrets/instagram-cookies.txt
 ```
 
-### `BOT_TOKEN`
+`BOT_TOKEN` é obrigatório; `MAX_WORKERS` controla os downloads simultâneos (padrão: 3). Os cookies são opcionais, mas necessários para muitos conteúdos do Instagram. `.env` e `secrets/` são ignorados pelo Git: nunca publique tokens ou cookies.
 
-Token do bot criado no BotFather.
+Depois de instalar as dependências da sua plataforma, valide:
 
-### `MAX_WORKERS`
-
-Quantidade máxima de downloads processados simultaneamente. O padrão é `3`.
-
-### `INSTAGRAM_COOKIES_FILE`
-
-Opcional, mas muitos conteúdos do Instagram exigem sessão autenticada.
-
-O arquivo deve usar o formato Netscape/Mozilla `cookies.txt`. A localização recomendada é:
-
-```text
-secrets/instagram-cookies.txt
+```bash
+go version
+yt-dlp --version
+gallery-dl --version
+ffmpeg -version
 ```
-
-A pasta `secrets/`, `.env` e arquivos de cookies são ignorados pelo Git.
-
-**Nunca publique o token do bot nem cookies de sessão.**
-
----
-
-# Instalação por plataforma
 
 ## Linux
 
-### Dependências
+### Instalar e executar
 
-Em Ubuntu, Debian, KDE neon e derivados:
+Em Ubuntu, Debian, KDE neon e derivados, instale Go 1.22.2+ pelo método da distribuição e execute:
 
 ```bash
 sudo apt update
@@ -126,82 +80,55 @@ pipx install "yt-dlp[default,curl-cffi]"
 pipx install gallery-dl
 ```
 
-Instale Go 1.22+ pelo método apropriado da distribuição.
-
-Valide:
-
-```bash
-go version
-yt-dlp --version
-gallery-dl --version
-ffmpeg -version
-```
-
-### Rodar pelo código-fonte
+Reabra o terminal para atualizar o `PATH`. Na raiz do projeto, após configurar o `.env`:
 
 ```bash
 go mod download
 go run ./cmd/bot
 ```
 
-### Compilar
+Para compilar e executar diretamente:
 
 ```bash
 mkdir -p bin
 go build -trimpath -ldflags="-s -w" -o bin/super-picos ./cmd/bot
+./bin/super-picos
 ```
 
-### Gerar pacote Linux `amd64`
+### Pacote e inicialização automática
+
+Na raiz do projeto:
 
 ```bash
 ./scripts/build-linux.sh
 ```
 
-O pacote será criado em:
-
-```text
-dist/super-picos-linux-amd64.tar.gz
-```
-
-### Autostart no Linux
-
-Depois de extrair o pacote, criar o `.env` e adicionar os cookies se necessário:
+Saída: `dist/super-picos-linux-amd64.tar.gz`. Extraia em uma pasta permanente, configure o `.env` e os cookies e, dentro dessa pasta, execute:
 
 ```bash
 ./install-autostart.sh
 ```
 
-O instalador cria um serviço `systemd --user` chamado:
-
-```text
-super-picos.service
-```
-
-Status:
+O instalador cria e inicia o serviço `systemd --user` chamado `super-picos.service`:
 
 ```bash
+# Status e logs
 systemctl --user status super-picos.service
-```
-
-Logs:
-
-```bash
 journalctl --user -u super-picos.service -f
-```
 
-Para iniciar no boot mesmo antes do login:
+# Iniciar ou parar manualmente
+systemctl --user start super-picos.service
+systemctl --user stop super-picos.service
 
-```bash
+# Permitir início no boot, antes do login
 sudo loginctl enable-linger "$USER"
 ```
 
----
-
 ## Windows
 
-### Dependências
+### Instalar e executar
 
-No PowerShell, Go e FFmpeg podem ser instalados com `winget`:
+No PowerShell:
 
 ```powershell
 winget install -e --id GoLang.Go
@@ -209,120 +136,76 @@ winget install -e --id Gyan.FFmpeg
 winget install -e --id Python.Python.3.13
 ```
 
-Feche e reabra o terminal após instalações que alterem o `PATH`.
-
-Instale `yt-dlp` e `gallery-dl` para o usuário atual:
+Reabra o terminal e instale os downloaders:
 
 ```powershell
 py -m pip install --user --upgrade "yt-dlp[default,curl-cffi]" gallery-dl
 ```
 
-Descubra o diretório correto de scripts do Python:
+Se os comandos não forem encontrados, adicione a pasta de scripts do Python ao `PATH` do usuário:
 
 ```powershell
 $Scripts = py -c "import sysconfig; print(sysconfig.get_path('scripts', scheme='nt_user'))"
-$Scripts
-```
-
-Caso esse diretório ainda não esteja no `PATH`, adicione-o permanentemente:
-
-```powershell
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-
 if (($userPath -split ';') -notcontains $Scripts) {
-    [Environment]::SetEnvironmentVariable(
-        "Path",
-        $userPath.TrimEnd(';') + ";" + $Scripts,
-        "User"
-    )
+    [Environment]::SetEnvironmentVariable("Path", "$userPath;$Scripts", "User")
 }
 ```
 
-Feche e reabra o PowerShell e valide:
+Reabra o PowerShell após alterar o `PATH`. Na raiz do projeto, com o `.env` configurado:
 
 ```powershell
-go version
-yt-dlp --version
-gallery-dl --version
-ffmpeg -version
-```
-
-### Rodar pelo código-fonte
-
-```powershell
+cd C:\Users\dells\Projetos\super-picos-downloader
 go mod download
 go run .\cmd\bot
 ```
 
-### Gerar pacote Windows `amd64`
+Ajuste o caminho se o projeto estiver em outra pasta. Mantenha o terminal aberto e use **Ctrl+C** para parar.
+
+### Pacote e inicialização automática
+
+Na raiz do projeto:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
 ```
 
-O pacote será criado em:
+Saída: `dist\super-picos-windows-amd64.zip`, com `super-picos.exe` (console e logs) e `super-picos-hidden.exe` (sem janela, para autostart).
 
-```text
-dist\super-picos-windows-amd64.zip
-```
-
-Ele contém dois executáveis:
-
-```text
-super-picos.exe
-super-picos-hidden.exe
-```
-
-- `super-picos.exe`: versão de console para diagnóstico e logs.
-- `super-picos-hidden.exe`: versão sem janela de console, destinada ao autostart.
-
-### Autostart no Windows
-
-Depois de extrair o pacote, criar `.env` e configurar `secrets/`:
+Extraia em uma pasta permanente, configure o `.env` e os cookies e, dentro dessa pasta, execute:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\register-autostart.ps1
 ```
 
-O script registra a tarefa:
-
-```text
-Super Picos Downloader
-```
-
-Diagnóstico:
+O script registra e inicia a tarefa **Super Picos Downloader**, configurada para iniciar no login:
 
 ```powershell
+# Iniciar manualmente
+Start-ScheduledTask -TaskName "Super Picos Downloader"
+
+# Diagnóstico
 Get-ScheduledTaskInfo -TaskName "Super Picos Downloader" |
-Format-List LastRunTime,LastTaskResult
-```
-
-Verificar o processo oculto:
-
-```powershell
+    Format-List LastRunTime,LastTaskResult
 Get-Process super-picos-hidden
-```
 
-Parar:
-
-```powershell
+# Parar a tarefa
 Stop-ScheduledTask -TaskName "Super Picos Downloader"
+
+# Se o processo continuar ativo
 Stop-Process -Name super-picos-hidden -Force
-```
 
-Remover o autostart:
-
-```powershell
+# Remover a inicialização automática
 Unregister-ScheduledTask -TaskName "Super Picos Downloader" -Confirm:$false
 ```
 
----
+Para diagnóstico com logs no terminal, pare a tarefa e execute `.\super-picos.exe` na pasta instalada.
 
 ## Android / Termux
 
-Mantenha o projeto e o executável dentro do `$HOME` do Termux. Evite executar o binário diretamente em `/sdcard` ou `~/storage/shared`.
+### Instalar e executar
 
-### Dependências
+Mantenha o projeto e o executável dentro do `$HOME` do Termux, evitando `/sdcard` e `~/storage/shared`.
 
 ```bash
 pkg update && pkg upgrade -y
@@ -330,243 +213,90 @@ pkg install -y golang python ffmpeg git python-yt-dlp
 python -m pip install --upgrade gallery-dl
 ```
 
-Valide:
-
-```bash
-go version
-python --version
-yt-dlp --version
-gallery-dl --version
-ffmpeg -version
-```
-
-### Rodar pelo código-fonte
+Valide as ferramentas com os comandos da seção de requisitos e `python --version`. Na raiz do projeto, após configurar o `.env`:
 
 ```bash
 go run ./cmd/bot
 ```
 
-### Compilar nativamente
+Para compilar nativamente e executar:
 
 ```bash
 mkdir -p bin
 go build -trimpath -ldflags="-s -w" -o bin/super-picos ./cmd/bot
+./bin/super-picos
 ```
 
-### Gerar pacote Termux
+### Pacote e inicialização com Termux:Boot
+
+Na raiz do projeto:
 
 ```bash
 ./scripts/build-termux.sh
 ```
 
-A arquitetura é detectada automaticamente pelo Go. Em um aparelho ARM64, o resultado será semelhante a:
+A arquitetura é detectada pelo Go. Em ARM64, a saída é `dist/super-picos-termux-arm64.tar.gz`.
 
-```text
-dist/super-picos-termux-arm64.tar.gz
-```
-
-### Autostart com Termux:Boot
-
-Instale o Termux:Boot da mesma origem/assinatura do Termux e abra o aplicativo pelo menos uma vez.
-
-Depois de extrair o pacote, criar `.env` e configurar `secrets/`:
+Instale o **Termux:Boot da mesma origem/assinatura do Termux** e abra-o pelo menos uma vez. Extraia o pacote em uma pasta permanente dentro do `$HOME`, configure o `.env` e os cookies e execute nessa pasta:
 
 ```bash
 ./install-autostart.sh
 ```
 
-O instalador cria:
-
-```text
-~/.termux/boot/start-super-picos
-```
-
-O processo usa `termux-wake-lock` quando disponível e grava logs em:
-
-```text
-bot.log
-```
-
-Acompanhar:
+O instalador cria `~/.termux/boot/start-super-picos` para executar no boot. O script usa `termux-wake-lock` quando disponível e grava `bot.log` na pasta instalada:
 
 ```bash
 tail -f bot.log
 ```
 
-No Android, deixe o Termux e o Termux:Boot sem restrição de bateria para reduzir a chance de o sistema encerrar o processo em segundo plano.
+Deixe **Termux e Termux:Boot sem restrição de bateria** para reduzir o risco de encerramento pelo Android.
 
----
+## Atualizações e pacotes
 
-# Releases locais
+Os scripts geram os pacotes em `dist/`, incluindo `.env.example`, este README, o instalador de autostart e `secrets/README.txt`. Eles não copiam seu `.env` nem cookies reais.
 
-Os scripts de build criam pacotes dentro de `dist/` e **não copiam** `.env` nem cookies reais.
+Use uma pasta de instalação fora de `dist/`: os scripts recriam a pasta de saída ao gerar um pacote. Para atualizar, pare o bot, substitua os executáveis e preserve o `.env` e os cookies. Se usa `go run`, basta parar e iniciar novamente após alterar o código.
 
-Estrutura típica:
+Execute apenas uma instância por token. No terminal, use **Ctrl+C** para parar; no Linux/Termux, o bot também trata `SIGTERM`.
 
-```text
-dist/
-├── linux-amd64/
-├── windows-amd64/
-├── termux-arm64/
-├── super-picos-linux-amd64.tar.gz
-├── super-picos-windows-amd64.zip
-└── super-picos-termux-arm64.tar.gz
-```
-
-Os pacotes incluem:
-
-```text
-.env.example
-README.md
-secrets/README.txt
-```
-
-O usuário deve criar o próprio `.env` e adicionar o próprio `instagram-cookies.txt` após extrair o pacote.
-
-## Scripts disponíveis
-
-```text
-scripts/
-├── build-linux.sh
-├── build-windows.ps1
-└── build-termux.sh
-```
-
-Arquivos de implantação copiados para os releases:
-
-```text
-packaging/
-├── linux/install-autostart.sh
-├── windows/register-autostart.ps1
-└── termux/install-autostart.sh
-```
-
----
-
-# Testes
-
-## Testes automatizados
+## Desenvolvimento e testes
 
 ```bash
 go test ./...
-```
-
-Também é recomendável executar:
-
-```bash
 go vet ./...
 ```
 
-## Testar um downloader sem Telegram
+Mantenha os arquivos `*_test.go` no projeto: eles não entram no executável. Os testes unitários de compressão simulam o ffmpeg.
+
+Para testar um download sem enviar ao Telegram:
 
 ```bash
 go run ./cmd/test-download "URL"
 ```
 
-Esse comando mantém o workspace temporário de propósito para permitir inspeção dos arquivos baixados. O bot normal remove o workspace automaticamente.
+Esse comando preserva os arquivos baixados para inspeção; remova-os quando terminar.
 
-## Formatação
-
-Linux/Termux:
+Formatação no Linux/Termux:
 
 ```bash
 gofmt -w $(find cmd internal -name '*.go')
 ```
 
-Windows PowerShell:
+No PowerShell:
 
 ```powershell
 gofmt -w (Get-ChildItem -Recurse -Filter *.go cmd,internal | ForEach-Object FullName)
 ```
 
----
+## Estrutura e próximos passos
 
-# Estratégias por plataforma
+| Pasta | Responsabilidade |
+| --- | --- |
+| `cmd/` | Bot e teste manual de download |
+| `internal/bot/` | Fila, workers, compressão e envio |
+| `internal/downloader/` | Downloaders e estratégias alternativas |
+| Demais pastas de `internal/` | Configuração, mídias, URLs, ferramentas e temporários |
+| `scripts/` | Geração dos pacotes |
+| `packaging/` | Instaladores de inicialização automática |
 
-## TikTok
-
-1. `yt-dlp` para vídeos.
-2. `gallery-dl` como fallback para posts `/photo/`.
-
-O fallback de fotos filtra somente imagens, evitando baixar o áudio associado ao carrossel.
-
-## Instagram
-
-1. `gallery-dl`, opcionalmente autenticado por `INSTAGRAM_COOKIES_FILE`.
-2. `yt-dlp` como fallback.
-
-O uso de um arquivo de cookies torna a autenticação portátil entre Linux, Windows e Termux sem depender do perfil local do navegador.
-
-## Threads
-
-Downloader próprio em Go. A página pública é analisada e o post principal é localizado pelo código da URL canônica. O extrator suporta `video_versions`, `image_versions2` e `carousel_media`.
-
-## X / Twitter
-
-1. `gallery-dl`.
-2. `yt-dlp` como fallback.
-
-Os arquivos retornados pelo `gallery-dl` são deduplicados por SHA-256 antes do envio.
-
-## Reddit
-
-1. `yt-dlp` para vídeos.
-2. RSS público para foto única.
-
-Links de compartilhamento são resolvidos antes da montagem da URL RSS. Galerias continuam marcadas como mídia não suportada.
-
-## YouTube
-
-Somente URLs de Shorts são reconhecidas pelo bot. Vídeos normais do YouTube não fazem parte do escopo atual.
-
-## Erome
-
-Downloader próprio em Go. O HTML do álbum é analisado para localizar imagens e vídeos, com remoção de URLs duplicadas antes do download.
-
----
-
-# Estrutura do projeto
-
-```text
-cmd/
-  bot/                 ponto de entrada do bot
-  test-download/       teste manual dos downloaders
-
-internal/
-  bot/                 polling, fila, workers e envio Telegram
-  config/              configuração e .env
-  downloader/          manager, fallback e downloaders por plataforma
-  media/               modelo de mídia
-  platform/            detecção de plataforma
-  tools/               detecção de yt-dlp, ffmpeg e gallery-dl
-  urlutil/             extração e validação de URLs
-  workspace/           diretórios temporários
-
-scripts/                geração dos releases locais
-packaging/              scripts de autostart incluídos nos pacotes
-```
-
-# Segurança
-
-O `.gitignore` exclui dados sensíveis e artefatos gerados, incluindo:
-
-```text
-.env
-secrets/
-*.cookies.txt
-instagram-cookies.txt
-bin/
-dist/
-release/
-gallery-dl/
-*.log
-```
-
-Não coloque tokens, cookies, binários compilados ou downloads de teste no repositório.
-
-# Próximas evoluções
-
-- suporte confiável a galerias do Reddit;
-- tratamento automático para mídias acima dos limites da Bot API oficial;
-- endpoint configurável para um Telegram Bot API Server próprio;
-- automação de releases em CI quando o projeto for publicado/distribuído com mais frequência.
+Próximas melhorias: galerias do Reddit, endpoint configurável da Bot API e automação de releases. Não versione tokens, cookies, binários, logs ou downloads de teste.
