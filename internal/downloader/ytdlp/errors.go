@@ -63,6 +63,7 @@ func classifyError(commandErr error, stderr string) error {
 
 	case containsAny(
 		message,
+		"no video could be found in this tweet",
 		"no video formats found",
 		"no formats found",
 	):

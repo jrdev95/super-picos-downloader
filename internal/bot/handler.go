@@ -138,25 +138,6 @@ func (b *Bot) processDownload(
 	link string,
 	detectedPlatform platform.Platform,
 ) {
-	statusMessage, statusErr := b.sendStatus(
-		message,
-		"⏳ Baixando mídia...",
-	)
-	if statusErr != nil {
-		slog.Error(
-			"falha ao enviar status de download",
-			"error", statusErr,
-			"chat_id", message.Chat.ID,
-		)
-	}
-
-	if statusMessage.MessageID != 0 {
-		defer b.deleteMessage(
-			message.Chat.ID,
-			statusMessage.MessageID,
-		)
-	}
-
 	ws, err := workspace.New()
 	if err != nil {
 		slog.Error(
@@ -201,6 +182,10 @@ func (b *Bot) processDownload(
 		ws.Path(),
 	)
 	if err != nil {
+		if downloader.IsNoMediaOnly(err) {
+			slog.Info("publicação sem mídia ignorada", "platform", detectedPlatform, "url", link)
+			return
+		}
 		slog.Error(
 			"download falhou",
 			"platform", detectedPlatform,
@@ -221,6 +206,25 @@ func (b *Bot) processDownload(
 		"items", len(result.Items),
 		"album", result.IsAlbum(),
 	)
+
+	statusMessage, statusErr := b.sendStatus(
+		message,
+		"⏳ Preparando mídia...",
+	)
+	if statusErr != nil {
+		slog.Error(
+			"falha ao enviar status de download",
+			"error", statusErr,
+			"chat_id", message.Chat.ID,
+		)
+	}
+
+	if statusMessage.MessageID != 0 {
+		defer b.deleteMessage(
+			message.Chat.ID,
+			statusMessage.MessageID,
+		)
+	}
 
 	sendStarted := time.Now()
 	if err := b.sendResult(parentCtx, message, result); err != nil {
@@ -296,9 +300,6 @@ func downloadErrorMessage(err error) string {
 
 	case errors.Is(err, downloader.ErrUnsupportedMedia):
 		return "⚠️ Esse tipo de mídia ainda não é suportado."
-
-	case errors.Is(err, downloader.ErrNoMedia):
-		return "⚠️ Não encontrei nenhuma mídia válida nessa publicação."
 
 	case errors.Is(err, downloader.ErrUnsupportedPlatform):
 		return "⚠️ A plataforma foi reconhecida, mas o downloader ainda não foi implementado."

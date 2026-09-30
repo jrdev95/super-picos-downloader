@@ -218,3 +218,12 @@ func TestChainFallsBackOnInvalidResult(t *testing.T) {
 		t.Fatal("fallback deveria ter sido utilizado")
 	}
 }
+
+func TestChainClassifiesEmptyResultsAsNoMedia(t *testing.T) {
+	empty := &fakeStrategy{name: "empty", result: &media.Result{Platform: platform.Instagram, URL: "https://instagram.com/p/text"}}
+	unsupported := &fakeStrategy{name: "unsupported", err: ErrUnsupported}
+	_, err := NewChain(empty, unsupported).Download(context.Background(), platform.Instagram, "https://instagram.com/p/text", t.TempDir())
+	if !IsNoMediaOnly(err) {
+		t.Fatalf("empty result should be silent, got %v", err)
+	}
+}

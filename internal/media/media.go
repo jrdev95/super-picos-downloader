@@ -7,6 +7,9 @@ import (
 	"github.com/jrdev95/super-picos-downloader/internal/platform"
 )
 
+// ErrNoMedia is shared by extractors and result validation.
+var ErrNoMedia = errors.New("nenhuma mídia encontrada")
+
 type Type string
 
 const (
@@ -46,7 +49,7 @@ func (r Result) Validate() error {
 	}
 
 	if len(r.Items) == 0 {
-		return errors.New("nenhuma mídia encontrada")
+		return ErrNoMedia
 	}
 
 	for i, item := range r.Items {

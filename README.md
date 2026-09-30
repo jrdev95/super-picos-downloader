@@ -340,3 +340,7 @@ O minigame usa SQLite sem CGO (`modernc.org/sqlite`) em `data/minigame.db`, rela
 Pesos por resultado de crescimento/empréstimo: 0–2 têm peso 2 cada; 3–8 peso 10 cada; 9–13 peso 3 cada; 14–16 peso 1 cada (84 no total). Nomes são atualizados quando a pessoa participa; o bot não tenta enumerar todos os membros do Telegram. Os dados usam chat ID + user ID. Transações SQLite protegem alterações e o histórico tem uma chave única por grupo, usuário e data.
 
 Para validar: `go test ./...` e `go vet ./...`. Os scripts de build existentes continuam válidos. A validação nativa do Termux deve ser feita no dispositivo. A consulta de participação de outros usuários pelo Telegram é garantida quando o bot é administrador do grupo; conceda esse papel para garantir a verificação do botão de duelo.
+
+### Publicações sem mídia
+
+Links de plataformas suportadas que retornam ausência de mídia são ignorados, sem resposta ou mensagem temporária de download. O status de preparação aparece somente depois de obter mídia. Em uma cadeia de tentativas, resultados sem mídia e estratégias incompatíveis podem ser ignorados juntos; erros de acesso, autenticação, formato não suportado, indisponibilidade ou download continuam sendo informados, mesmo quando outra tentativa não encontra mídia.

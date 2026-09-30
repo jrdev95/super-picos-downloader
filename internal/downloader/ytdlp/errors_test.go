@@ -62,3 +62,21 @@ func TestClassifyNoMediaError(t *testing.T) {
 		)
 	}
 }
+
+func TestTwitterTextPostDoesNotBecomeGenericFailure(t *testing.T) {
+	err := classifyError(errors.New("exit status 1"),
+		"ERROR: [twitter] 2104948145985835437: No video could be found in this tweet")
+	if !errors.Is(err, downloader.ErrNoMedia) {
+		t.Fatalf("expected no media, got %v", err)
+	}
+	// gallery-dl completed without media; yt-dlp confirms it has no video.
+	combined := errors.Join(downloader.ErrNoMedia, err)
+	if !downloader.IsNoMediaOnly(combined) {
+		t.Fatalf("text-only post would still produce a reply: %v", combined)
+	}
+	// No video alone does not establish that a photo download did not fail.
+	combined = errors.Join(errors.New("gallery-dl: HTTP 403 Forbidden"), err)
+	if downloader.IsNoMediaOnly(combined) {
+		t.Fatal("real access error must not be hidden")
+	}
+}
