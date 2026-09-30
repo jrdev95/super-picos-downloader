@@ -19,6 +19,7 @@ import (
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/tiktok"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/twitter"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/ytdlp"
+	"github.com/jrdev95/super-picos-downloader/internal/minigame"
 	"github.com/jrdev95/super-picos-downloader/internal/tools"
 )
 
@@ -115,10 +116,19 @@ func main() {
 		eromeDownloader,
 	)
 
+	game, err := minigame.Open("data/minigame.db")
+	if err != nil {
+		slog.Error("falha ao abrir minigame", "error", err)
+		os.Exit(1)
+	}
+	defer game.Close()
+
 	telegramBot, err := bot.New(
 		cfg.BotToken,
 		downloadManager,
 		cfg.MaxWorkers,
+		bot.WithMediaReduction(cfg.ReduceMedia),
+		bot.WithMinigame(game),
 	)
 	if err != nil {
 		slog.Error(

@@ -15,6 +15,7 @@ const defaultMaxWorkers = 3
 type Config struct {
 	BotToken             string
 	MaxWorkers           int
+	ReduceMedia          bool
 	InstagramCookiesFile string
 }
 
@@ -41,9 +42,14 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	reduceMedia, err := loadMediaReduction()
+	if err != nil {
+		return nil, err
+	}
 	return &Config{
 		BotToken:             botToken,
 		MaxWorkers:           maxWorkers,
+		ReduceMedia:          reduceMedia,
 		InstagramCookiesFile: strings.TrimSpace(os.Getenv("INSTAGRAM_COOKIES_FILE")),
 	}, nil
 }
@@ -72,4 +78,16 @@ func loadMaxWorkers() (int, error) {
 	}
 
 	return workers, nil
+}
+
+func loadMediaReduction() (bool, error) {
+	value := strings.TrimSpace(os.Getenv("REDUCE_MEDIA"))
+	if value == "" {
+		return false, nil
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("REDUCE_MEDIA inválido: use true ou false: %w", err)
+	}
+	return enabled, nil
 }

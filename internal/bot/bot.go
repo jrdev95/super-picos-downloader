@@ -10,22 +10,26 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/jrdev95/super-picos-downloader/internal/downloader"
+	"github.com/jrdev95/super-picos-downloader/internal/minigame"
 )
 
 type Bot struct {
+	game    *minigame.Store
 	api     *tgbotapi.BotAPI
 	manager *downloader.Manager
 
 	jobs    chan downloadJob
 	workers int
 
-	wg sync.WaitGroup
+	reduceMedia bool
+	wg          sync.WaitGroup
 }
 
 func New(
 	token string,
 	manager *downloader.Manager,
 	workers int,
+	options ...Option,
 ) (*Bot, error) {
 	if manager == nil {
 		return nil, fmt.Errorf(
@@ -40,7 +44,7 @@ func New(
 		)
 	}
 
-	api, err := tgbotapi.NewBotAPI(token)
+	api, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, newTelegramClient(workers))
 	if err != nil {
 		return nil, fmt.Errorf(
 			"falha ao conectar ao Telegram: %w",
@@ -53,7 +57,7 @@ func New(
 		"bot", "@"+api.Self.UserName,
 	)
 
-	return &Bot{
+	b := &Bot{
 		api:     api,
 		manager: manager,
 
@@ -63,7 +67,11 @@ func New(
 		),
 
 		workers: workers,
-	}, nil
+	}
+	for _, option := range options {
+		option(b)
+	}
+	return b, nil
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -116,6 +124,10 @@ func (b *Bot) Run(ctx context.Context) error {
 				"has_message", update.Message != nil,
 			)
 
+			if update.CallbackQuery != nil {
+				b.handleGameCallback(update.CallbackQuery)
+				continue
+			}
 			if update.Message == nil {
 				continue
 			}
@@ -153,6 +165,7 @@ func (b *Bot) prepareUpdates() (
 
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
+	updateConfig.AllowedUpdates = []string{"message", "callback_query"}
 
 	if len(pending) > 0 {
 		lastUpdate := pending[len(pending)-1]
@@ -166,4 +179,11 @@ func (b *Bot) prepareUpdates() (
 	}
 
 	return updateConfig, nil
+}
+
+type Option func(*Bot)
+
+// WithMediaReduction enables optional reduction before upload.
+func WithMediaReduction(enabled bool) Option {
+	return func(b *Bot) { b.reduceMedia = enabled }
 }

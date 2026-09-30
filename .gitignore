@@ -21,3 +21,5 @@ gallery-dl/
 *.log
 
 coverage.out
+
+data/minigame.db*

@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -34,6 +37,14 @@ func (b *Bot) sendResult(
 
 	compressionCtx, cancel := context.WithTimeout(ctx, compressionTimeout)
 	defer cancel()
+	if b.reduceMedia {
+		reduced, cleanupReduction, err := reduceMedia(compressionCtx, result, runFFmpeg)
+		defer cleanupReduction()
+		if err != nil {
+			return err
+		}
+		result = reduced
+	}
 	prepared, cleanup, err := prepareVideos(compressionCtx, result, runFFmpeg)
 	defer cleanup()
 	if err != nil {
@@ -88,7 +99,9 @@ func (b *Bot) sendSingle(
 	chatID int64,
 	replyTo int,
 	item media.Item,
-) error {
+) (sendErr error) {
+	defer logMediaSend(time.Now(), []media.Item{item}, &sendErr)
+
 	file := tgbotapi.FilePath(item.Path)
 
 	switch item.Type {
@@ -138,7 +151,9 @@ func (b *Bot) sendAlbum(
 	chatID int64,
 	replyTo int,
 	items []media.Item,
-) error {
+) (sendErr error) {
+	defer logMediaSend(time.Now(), items, &sendErr)
+
 	if len(items) < 2 {
 		return errors.New(
 			"álbum precisa conter pelo menos 2 mídias",
@@ -243,4 +258,20 @@ func splitMediaBatches(
 	}
 
 	return batches
+}
+
+// This measures the Telegram request, including server processing, separately
+// from downloading and preparing media. It is not a pure network speed test.
+func logMediaSend(started time.Time, items []media.Item, sendErr *error) {
+	var bytes int64
+	for _, item := range items {
+		if info, err := os.Stat(item.Path); err == nil {
+			bytes += info.Size()
+		}
+	}
+	kind := "album"
+	if len(items) == 1 {
+		kind = string(items[0].Type)
+	}
+	slog.Info("envio ao Telegram concluído", "media_type", kind, "items", len(items), "bytes", bytes, "elapsed", time.Since(started), "success", *sendErr == nil)
 }

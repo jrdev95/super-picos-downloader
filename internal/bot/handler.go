@@ -41,6 +41,9 @@ func (b *Bot) handleMessage(message *tgbotapi.Message) {
 }
 
 func (b *Bot) handleCommand(message *tgbotapi.Message) {
+	if b.handleGameCommand(message) {
+		return
+	}
 	switch message.Command() {
 	case "start":
 		b.handleStart(message)
@@ -48,13 +51,32 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 }
 
 func (b *Bot) handleStart(message *tgbotapi.Message) {
-	b.reply(
-		message,
-		"👋 Super Picos Downloader está online.\n\n"+
-			"Envie um link de mídia para começar.",
-	)
-}
+	const text = `👋 Bem-vindo ao Super Picos Downloader!
 
+📥 <b>Mande o link, que eu busco a mídia!</b>
+TikTok, Instagram, Threads, X/Twitter, Reddit, YouTube Shorts e Erome.
+
+🍆 <b>No grupo, tamanho é documento:</b>
+
+/grow — Cresça de 0 a 16 cm por dia.
+/rank — Veja quem tem o maior do grupo.
+/duelo valor — Aposte seus centímetros. Ex.: <code>/duelo 10</code>.
+/emprestimo — Zerou? Tente a sorte com o banco.
+/status — Confira seu tamanho, vitórias e dívida.
+/limpar confirmar — Zera o minigame do grupo. Só administradores.
+
+⏰ O /grow libera novamente à meia-noite, no horário de Fortaleza.
+⚔️ Duelo é sorte: 50% para cada lado. Pal grande não garante vitória.
+🏦 Pegou empréstimo? O banco desconta dos próximos crescimentos até quitar.
+
+<b>Mande um link ou digite /grow e tire esse pal do repouso!</b>`
+	response := tgbotapi.NewMessage(message.Chat.ID, text)
+	response.ReplyToMessageID = message.MessageID
+	response.ParseMode = tgbotapi.ModeHTML
+	if _, err := b.api.Send(response); err != nil {
+		slog.Error("falha ao enviar apresentação", "error", err, "chat_id", message.Chat.ID)
+	}
+}
 func (b *Bot) handleURL(message *tgbotapi.Message, link string) {
 	detectedPlatform := platform.Detect(link)
 

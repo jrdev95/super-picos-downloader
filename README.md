@@ -21,13 +21,15 @@ Galerias do Reddit ainda têm limitações. Conteúdos privados, removidos ou qu
 - Responde à mensagem original e mostra um status temporário durante o download.
 - Descarta mensagens pendentes ao iniciar e processa os novos links por fila, com múltiplos workers.
 - Preserva ordem e legendas dos álbuns, dividindo-os em grupos de até 10 mídias, sem grupos unitários.
-- Vídeos de até 50.000.000 bytes seguem sem recompressão. Acima disso, tenta reduzir para **até 48 MB**, com no máximo três tentativas usando ffmpeg.
+- Por padrão, vídeos de até 50.000.000 bytes seguem sem recompressão. Acima disso, tenta reduzir para **até 48 MB**, com no máximo três tentativas usando ffmpeg.
 - A compressão usa `veryfast`, limita a maior dimensão e ajusta novas tentativas pelo tamanho obtido. Pode reduzir a qualidade, mas não corta a duração.
 - Prepara todos os vídeos antes de enviar o álbum. Se não atingir a margem segura, informa o problema e não envia o resultado.
 - Cada download tem prazo de 3 minutos; a preparação dos vídeos tem prazo separado de 10 minutos para o conjunto.
 - Remove os arquivos temporários ao terminar, inclusive em caso de erro. Os logs incluem os tempos de compressão e de preparação/envio.
 
-Fotos não são recomprimidas e continuam sujeitas aos limites da [Bot API oficial](https://core.telegram.org/bots/api). Um [servidor local da Bot API](https://github.com/tdlib/telegram-bot-api) não faz parte da configuração padrão.
+Por padrão, fotos não são recomprimidas e continuam sujeitas aos limites da [Bot API oficial](https://core.telegram.org/bots/api). Um [servidor local da Bot API](https://github.com/tdlib/telegram-bot-api) não faz parte da configuração padrão.
+
+- Reaproveita conexões HTTP entre envios. O log `envio ao Telegram concluído` registra tipo, quantidade, bytes e tempo da requisição, incluindo o processamento do Telegram, separado da preparação. Essa otimização não reduz a qualidade nem garante aumento da velocidade da rede.
 
 ## Requisitos e configuração
 
@@ -52,6 +54,7 @@ Edite o arquivo:
 ```env
 BOT_TOKEN=SEU_TOKEN_DO_BOTFATHER
 MAX_WORKERS=3
+REDUCE_MEDIA=true
 INSTAGRAM_COOKIES_FILE=secrets/instagram-cookies.txt
 ```
 
@@ -251,6 +254,28 @@ tail -f bot.log
 
 Deixe **Termux e Termux:Boot sem restrição de bateria** para reduzir o risco de encerramento pelo Android.
 
+## Redução moderada para envio
+
+A configuração acima mantém `REDUCE_MEDIA=true` no `.env`, ativando a redução nas próximas inicializações, inclusive pela tarefa automática. O modo tenta diminuir fotos e vídeos antes do upload:
+
+- Fotos a partir de 256 KB: até 1920 pixels no lado maior, JPEG qualidade 85; transparência vira fundo branco.
+- Vídeos de 5 MB até 50 MB: até 1280 pixels no lado maior, H.264 CRF 26 e áudio AAC 128 kb/s, sem cortar a duração.
+- Usa a cópia somente se economizar pelo menos 10% do tamanho. Se a redução opcional falhar, mantém o original. Cancelamentos interrompem a preparação.
+- Arquivos menores são preservados; vídeos acima de 50 MB seguem diretamente para a compressão obrigatória já descrita.
+
+A resolução não é ampliada. Álbuns mantêm ordem e legendas. A redução pode perder detalhes e levar tempo de processamento; compare o tempo total, não apenas o upload.
+
+Para experimentar no PowerShell, pare a instância atual e execute na raiz do projeto:
+
+```powershell
+$env:REDUCE_MEDIA="true"
+go run .\cmd\bot
+```
+
+Para desativar permanentemente, altere para `REDUCE_MEDIA=false` no `.env` e reinicie o bot. Sem essa variável, o padrão do código é desativado. Alterar apenas o `.env` não exige recompilação, desde que o executável já inclua esse recurso.
+
+Variáveis definidas no terminal têm prioridade sobre o `.env`. Para voltar a usar o valor do arquivo no PowerShell, execute `Remove-Item Env:REDUCE_MEDIA -ErrorAction SilentlyContinue` antes de iniciar o bot. No Linux/Termux, um teste temporário pode ser feito com `REDUCE_MEDIA=true go run ./cmd/bot`.
+
 ## Atualizações e pacotes
 
 Os scripts geram os pacotes em `dist/`, incluindo `.env.example`, este README, o instalador de autostart e `secrets/README.txt`. Eles não copiam seu `.env` nem cookies reais.
@@ -300,3 +325,18 @@ gofmt -w (Get-ChildItem -Recurse -Filter *.go cmd,internal | ForEach-Object Full
 | `packaging/` | Instaladores de inicialização automática |
 
 Próximas melhorias: galerias do Reddit, endpoint configurável da Bot API e automação de releases. Não versione tokens, cookies, binários, logs ou downloads de teste.
+
+## Minigame do grupo
+
+O minigame usa SQLite sem CGO (`modernc.org/sqlite`) em `data/minigame.db`, relativo ao diretório de execução. A pasta é criada automaticamente. Preserve essa pasta entre atualizações; para backup simples, pare o bot e copie a pasta inteira. O banco não integra os pacotes de release.
+
+- `/grow`: uma tentativa por dia, com virada às 00:00 em `America/Fortaleza`, inclusive no Windows e Termux (base de fusos embutida).
+- `/rank`: ranking do grupo com nomes visíveis; `[+]` ainda não jogou hoje e `[~]` último crescimento há mais de sete datas locais. Quem nunca cresceu recebe `[+]`. Empates seguem o ID numérico do usuário. Rankings longos são enviados em várias mensagens.
+- `/duelo valor`: aposta inteira de pelo menos 1 cm; outro membro aceita com **Ataque!**. Não reserva saldo: ambos os saldos são revalidados ao aceitar. Convites persistem após reiniciar, não expiram e são invalidados por `/limpar confirmar`. Só a primeira aceitação válida conclui a aposta. O vencedor é sorteado independentemente, com 50% para cada lado, sem compensação por histórico.
+- `/emprestimo`: disponível apenas após pelo menos uma tentativa de crescimento no grupo, com tamanho atual de 0 cm e sem dívida. A primeira tentativa pode resultar em zero. Após limpar o grupo, é preciso tentar crescer novamente. Sorteia 0–16 cm; zero não gera dívida. No `/grow`, o pagamento é o menor entre dívida, crescimento bruto e sorteio de 1–3 cm. A mensagem mostra crescimento líquido e valor pago.
+- `/status`: tamanho, rank, sequências, duelos, vitórias, win rate, cm ganhos/perdidos em duelos e dívida. Win rate é arredondado ao inteiro mais próximo; sequências de crescimento incluem dias com resultado zero.
+- `/limpar confirmar`: apenas administradores identificados por conta pessoal. Zera estatísticas e remove histórico diário e convites apenas do grupo atual, preservando nomes dos participantes. Permite crescer novamente no mesmo dia após a limpeza.
+
+Pesos por resultado de crescimento/empréstimo: 0–2 têm peso 2 cada; 3–8 peso 10 cada; 9–13 peso 3 cada; 14–16 peso 1 cada (84 no total). Nomes são atualizados quando a pessoa participa; o bot não tenta enumerar todos os membros do Telegram. Os dados usam chat ID + user ID. Transações SQLite protegem alterações e o histórico tem uma chave única por grupo, usuário e data.
+
+Para validar: `go test ./...` e `go vet ./...`. Os scripts de build existentes continuam válidos. A validação nativa do Termux deve ser feita no dispositivo. A consulta de participação de outros usuários pelo Telegram é garantida quando o bot é administrador do grupo; conceda esse papel para garantir a verificação do botão de duelo.
