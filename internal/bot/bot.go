@@ -118,12 +118,6 @@ func (b *Bot) Run(ctx context.Context) error {
 		for _, update := range updates {
 			updateConfig.Offset = update.UpdateID + 1
 
-			slog.Info(
-				"update recebido",
-				"update_id", update.UpdateID,
-				"has_message", update.Message != nil,
-			)
-
 			if update.CallbackQuery != nil {
 				b.handleGameCallback(update.CallbackQuery)
 				continue
@@ -131,13 +125,6 @@ func (b *Bot) Run(ctx context.Context) error {
 			if update.Message == nil {
 				continue
 			}
-
-			slog.Info(
-				"mensagem recebida",
-				"chat_id", update.Message.Chat.ID,
-				"text", update.Message.Text,
-				"caption", update.Message.Caption,
-			)
 
 			b.handleMessage(update.Message)
 		}
