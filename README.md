@@ -20,12 +20,14 @@ Galerias do Reddit ainda têm limitações. Conteúdos privados, removidos ou qu
 
 - Responde à mensagem original e mostra um status temporário durante o download.
 - Descarta mensagens pendentes ao iniciar e processa os novos links por fila, com múltiplos workers.
+- Antes de iniciar os workers, limpa a fila pendente do Telegram. Comandos e links com data anterior ao início também são ignorados se forem entregues depois. A comparação usa a precisão de segundos do Telegram e depende do relógio correto do sistema.
 - Preserva ordem e legendas dos álbuns, dividindo-os em grupos de até 10 mídias, sem grupos unitários.
 - Por padrão, vídeos de até 50.000.000 bytes seguem sem recompressão. Acima disso, tenta reduzir para **até 48 MB**, com no máximo três tentativas usando ffmpeg.
 - A compressão usa `veryfast`, limita a maior dimensão e ajusta novas tentativas pelo tamanho obtido. Pode reduzir a qualidade, mas não corta a duração.
 - Prepara todos os vídeos antes de enviar o álbum. Se não atingir a margem segura, informa o problema e não envia o resultado.
 - Cada download tem prazo de 3 minutos; a preparação dos vídeos tem prazo separado de 10 minutos para o conjunto.
 - Remove os arquivos temporários ao terminar, inclusive em caso de erro. Os logs incluem os tempos de compressão e de preparação/envio.
+- Os logs do bot aparecem em blocos com data, horário e nível, detalhes abaixo e erros separados por linha. Eventos de workers diferentes não se misturam dentro do mesmo bloco. Mensagens comuns do chat não são registradas.
 
 Por padrão, fotos não são recomprimidas e continuam sujeitas aos limites da [Bot API oficial](https://core.telegram.org/bots/api). Um [servidor local da Bot API](https://github.com/tdlib/telegram-bot-api) não faz parte da configuração padrão.
 

@@ -75,6 +75,14 @@ func New(
 }
 
 func (b *Bot) Run(ctx context.Context) error {
+	// Telegram message dates have second precision. Keep messages from this
+	// second, but reject anything sent before this run, even if delivered late.
+	startedAt := time.Now().Unix()
+	updateConfig, err := b.prepareUpdates()
+	if err != nil {
+		return err
+	}
+
 	workerCtx, cancelWorkers := context.WithCancel(ctx)
 
 	b.startWorkers(workerCtx)
@@ -83,11 +91,6 @@ func (b *Bot) Run(ctx context.Context) error {
 		cancelWorkers()
 		b.wg.Wait()
 	}()
-
-	updateConfig, err := b.prepareUpdates()
-	if err != nil {
-		return err
-	}
 
 	slog.Info("aguardando mensagens")
 
@@ -125,6 +128,13 @@ func (b *Bot) Run(ctx context.Context) error {
 			if update.Message == nil {
 				continue
 			}
+			if int64(update.Message.Date) < startedAt {
+				slog.Info("mensagem anterior à inicialização ignorada",
+					"update_id", update.UpdateID,
+					"message_date", time.Unix(int64(update.Message.Date), 0),
+				)
+				continue
+			}
 
 			b.handleMessage(update.Message)
 		}
@@ -135,12 +145,17 @@ func (b *Bot) prepareUpdates() (
 	tgbotapi.UpdateConfig,
 	error,
 ) {
+	// Explicitly discard Telegram's pending queue, including old callbacks.
+	if _, err := b.api.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true}); err != nil {
+		return tgbotapi.UpdateConfig{}, fmt.Errorf("falha ao limpar fila pendente do Telegram: %w", err)
+	}
 	// Busca somente o update pendente mais recente.
 	// Depois usamos o ID dele para ignorar tudo que chegou
 	// enquanto o bot estava desligado.
 	pendingConfig := tgbotapi.NewUpdate(-1)
 	pendingConfig.Limit = 1
 	pendingConfig.Timeout = 0
+	pendingConfig.AllowedUpdates = []string{"message", "callback_query"}
 
 	pending, err := b.api.GetUpdates(pendingConfig)
 	if err != nil {

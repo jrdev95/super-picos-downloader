@@ -19,13 +19,14 @@ import (
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/tiktok"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/twitter"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/ytdlp"
+	"github.com/jrdev95/super-picos-downloader/internal/logging"
 	"github.com/jrdev95/super-picos-downloader/internal/minigame"
 	"github.com/jrdev95/super-picos-downloader/internal/tools"
 )
 
 func main() {
 	logger := slog.New(
-		slog.NewTextHandler(os.Stdout, nil),
+		logging.NewConsoleHandler(os.Stdout),
 	)
 
 	slog.SetDefault(logger)
