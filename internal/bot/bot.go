@@ -22,6 +22,7 @@ type Bot struct {
 	workers int
 
 	reduceMedia bool
+	lowMemory   bool
 	wg          sync.WaitGroup
 }
 
@@ -188,4 +189,8 @@ type Option func(*Bot)
 // WithMediaReduction enables optional reduction before upload.
 func WithMediaReduction(enabled bool) Option {
 	return func(b *Bot) { b.reduceMedia = enabled }
+}
+
+func WithLowMemory(enabled bool) Option {
+	return func(b *Bot) { b.lowMemory = enabled }
 }

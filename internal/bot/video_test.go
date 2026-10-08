@@ -28,6 +28,15 @@ func sizedVideo(t *testing.T, path string, size int64) {
 	}
 }
 
+func TestLowMemoryFFmpegPreservesEncodingOptions(t *testing.T) {
+	args := []string{"-i", "input.mp4", "-c:v", "libx264", "-crf", "28", "output.mp4"}
+	got := lowMemoryFFmpegArgs(args)
+	want := []string{"-threads", "1", "-filter_threads", "1", "-filter_complex_threads", "1", "-i", "input.mp4", "-c:v", "libx264", "-crf", "28", "-threads", "1", "output.mp4"}
+	if !reflect.DeepEqual(got, want) || args[0] != "-i" {
+		t.Fatalf("unexpected args: %v", got)
+	}
+}
+
 func TestPrepareVideosPreservesSmallFiles(t *testing.T) {
 	for _, size := range []int64{1, maxVideoBytes - 1, maxVideoBytes} {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {

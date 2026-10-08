@@ -32,6 +32,20 @@ func (e *videoSizeError) Unwrap() error { return e.cause }
 
 type videoRunner func(context.Context, ...string) error
 
+func lowMemoryFFmpegArgs(args []string) []string {
+	// Input decoder options must precede -i; encoder options precede output.
+	limited := []string{"-threads", "1", "-filter_threads", "1", "-filter_complex_threads", "1"}
+	if len(args) == 0 {
+		return limited
+	}
+	limited = append(limited, args[:len(args)-1]...)
+	return append(limited, "-threads", "1", args[len(args)-1])
+}
+
+func runFFmpegLowMemory(ctx context.Context, args ...string) error {
+	return runFFmpeg(ctx, lowMemoryFFmpegArgs(args)...)
+}
+
 func runFFmpeg(ctx context.Context, args ...string) error {
 	cmd := executil.CommandContext(ctx, "ffmpeg", args...)
 	if err := cmd.Run(); err != nil {

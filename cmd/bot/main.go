@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/jrdev95/super-picos-downloader/internal/bot"
@@ -41,6 +43,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.LowMemory {
+		// This is a soft Go runtime limit; subprocesses have their own memory.
+		if os.Getenv("GOMEMLIMIT") == "" {
+			debug.SetMemoryLimit(256 << 20)
+		}
+		if os.Getenv("TMPDIR") == "" {
+			tmpDir, err := filepath.Abs(filepath.Join("data", "tmp"))
+			if err == nil {
+				err = os.MkdirAll(tmpDir, 0700)
+			}
+			if err == nil {
+				err = os.Setenv("TMPDIR", tmpDir)
+			}
+			if err != nil {
+				slog.Error("falha ao preparar temporários no disco", "error", err)
+				os.Exit(1)
+			}
+		}
+		slog.Info("modo de pouca memória ativado", "workers", cfg.MaxWorkers, "ffmpeg_threads", 1)
+	}
 	externalTools, err := tools.Detect()
 	if err != nil {
 		slog.Error(
@@ -62,6 +84,7 @@ func main() {
 		externalTools.YTDLP,
 		externalTools.FFmpeg,
 	)
+	ytdlpStrategy.SetLowMemory(cfg.LowMemory)
 
 	galleryDLStrategy := gallerydl.New(
 		externalTools.GalleryDL,
@@ -129,6 +152,7 @@ func main() {
 		downloadManager,
 		cfg.MaxWorkers,
 		bot.WithMediaReduction(cfg.ReduceMedia),
+		bot.WithLowMemory(cfg.LowMemory),
 		bot.WithMinigame(game),
 	)
 	if err != nil {

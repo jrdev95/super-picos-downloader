@@ -16,6 +16,7 @@ type Config struct {
 	BotToken             string
 	MaxWorkers           int
 	ReduceMedia          bool
+	LowMemory            bool
 	InstagramCookiesFile string
 }
 
@@ -37,9 +38,16 @@ func Load() (*Config, error) {
 		)
 	}
 
+	lowMemory, err := loadLowMemory()
+	if err != nil {
+		return nil, err
+	}
 	maxWorkers, err := loadMaxWorkers()
 	if err != nil {
 		return nil, err
+	}
+	if lowMemory {
+		maxWorkers = 1
 	}
 
 	reduceMedia, err := loadMediaReduction()
@@ -49,9 +57,22 @@ func Load() (*Config, error) {
 	return &Config{
 		BotToken:             botToken,
 		MaxWorkers:           maxWorkers,
+		LowMemory:            lowMemory,
 		ReduceMedia:          reduceMedia,
 		InstagramCookiesFile: strings.TrimSpace(os.Getenv("INSTAGRAM_COOKIES_FILE")),
 	}, nil
+}
+
+func loadLowMemory() (bool, error) {
+	value := strings.TrimSpace(os.Getenv("LOW_MEMORY"))
+	if value == "" {
+		return false, nil
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("LOW_MEMORY inválido: use true ou false: %w", err)
+	}
+	return enabled, nil
 }
 
 func loadMaxWorkers() (int, error) {

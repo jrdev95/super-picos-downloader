@@ -35,6 +35,10 @@ Por padrão, fotos não são recomprimidas e continuam sujeitas aos limites da [
 
 ## Requisitos e configuração
 
+Para VPS Linux com 1 GB de RAM, defina `LOW_MEMORY=true` no `.env`. Esse modo força um worker (mesmo com `MAX_WORKERS` maior), limita decodificação, codificação e filtros do ffmpeg a uma thread e aplica um limite suave de 256 MiB ao runtime Go, salvo se `GOMEMLIMIT` já estiver definido. Mantém a qualidade e os limites de tamanho da compressão; a conversão individual pode demorar mais. Os processos externos e o sistema operacional não estão incluídos no limite do Go, portanto não é garantia contra falta de memória.
+
+No Linux, quando `TMPDIR` não está definido, o modo usa `data/tmp` no disco para os downloads e processos filhos, evitando o `/tmp` em RAM. Se definir `TMPDIR`, use um diretório existente em disco. Execute o binário compilado na VPS, em vez de `go run`; para compilar com menos concorrência: `GOTMPDIR="$HOME/.cache/go-tmp" CGO_ENABLED=0 go build -p 1 -trimpath -o super-picos ./cmd/bot`, criando antes essa pasta. Após atualizar o binário e o `.env`, reinicie o serviço.
+
 - Go **1.22.2+** para executar pelo código-fonte ou compilar.
 - `yt-dlp`, `gallery-dl` e `ffmpeg` disponíveis no `PATH` do processo do bot.
 - FFmpeg com os encoders `libx264` e `aac` para recompressão.

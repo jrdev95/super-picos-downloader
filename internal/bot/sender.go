@@ -37,15 +37,19 @@ func (b *Bot) sendResult(
 
 	compressionCtx, cancel := context.WithTimeout(ctx, compressionTimeout)
 	defer cancel()
+	run := videoRunner(runFFmpeg)
+	if b.lowMemory {
+		run = runFFmpegLowMemory
+	}
 	if b.reduceMedia {
-		reduced, cleanupReduction, err := reduceMedia(compressionCtx, result, runFFmpeg)
+		reduced, cleanupReduction, err := reduceMedia(compressionCtx, result, run)
 		defer cleanupReduction()
 		if err != nil {
 			return err
 		}
 		result = reduced
 	}
-	prepared, cleanup, err := prepareVideos(compressionCtx, result, runFFmpeg)
+	prepared, cleanup, err := prepareVideos(compressionCtx, result, run)
 	defer cleanup()
 	if err != nil {
 		return err

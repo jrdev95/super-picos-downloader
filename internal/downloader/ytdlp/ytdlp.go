@@ -17,6 +17,7 @@ import (
 type Strategy struct {
 	ytdlpPath  string
 	ffmpegPath string
+	lowMemory  bool
 }
 
 func New(ytdlpPath, ffmpegPath string) *Strategy {
@@ -29,6 +30,8 @@ func New(ytdlpPath, ffmpegPath string) *Strategy {
 func (s *Strategy) Name() string {
 	return "yt-dlp"
 }
+
+func (s *Strategy) SetLowMemory(enabled bool) { s.lowMemory = enabled }
 
 func (s *Strategy) Download(
 	ctx context.Context,
@@ -75,6 +78,9 @@ func (s *Strategy) Download(
 		url,
 	}
 
+	if s.lowMemory {
+		args = append([]string{"--postprocessor-args", "ffmpeg_i:-threads 1", "--postprocessor-args", "ffmpeg_o:-threads 1 -filter_threads 1 -filter_complex_threads 1"}, args...)
+	}
 	cmd := executil.CommandContext(
 		ctx,
 		s.ytdlpPath,
