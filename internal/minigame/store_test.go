@@ -18,6 +18,7 @@ func testStore(t *testing.T) *Store {
 	}
 	t.Cleanup(func() { s.Close() })
 	s.now = func() time.Time { return time.Date(2026, 9, 30, 12, 0, 0, 0, s.location) }
+	s.duelRandom = func() (int, error) { return 0, nil }
 	s.random = func(n int) int {
 		if n == 84 {
 			return 36
@@ -48,7 +49,7 @@ func command(t *testing.T, s *Store, chat, id int64, cmd, args string) Result {
 	}
 	return r
 }
-func TestGrowConcurrentAndMidnight(t *testing.T) {
+func TestGrowConcurrentAndSixHourInterval(t *testing.T) {
 	s := testStore(t)
 	var success atomic.Int32
 	var wg sync.WaitGroup
@@ -68,14 +69,18 @@ func TestGrowConcurrentAndMidnight(t *testing.T) {
 	if p := get(t, s, 1, 1); p.Size != 6 || p.GrowStreak != 1 {
 		t.Fatal(p)
 	}
-	// UTC date has advanced, Fortaleza has not.
-	s.now = func() time.Time { return time.Date(2026, 10, 1, 2, 59, 0, 0, time.UTC) }
+	s.now = func() time.Time { return time.Date(2026, 9, 30, 17, 59, 59, 0, s.location) }
 	if _, e := s.Command(1, 1, "João", "grow", ""); e == nil {
-		t.Fatal("allowed before local midnight")
+		t.Fatal("allowed before six hours elapsed")
+	}
+	s.now = func() time.Time { return time.Date(2026, 9, 30, 18, 0, 0, 0, s.location) }
+	command(t, s, 1, 1, "grow", "")
+	if p := get(t, s, 1, 1); p.Size != 12 || p.GrowStreak != 1 {
+		t.Fatal(p)
 	}
 	s.now = func() time.Time { return time.Date(2026, 10, 1, 3, 0, 0, 0, time.UTC) }
 	command(t, s, 1, 1, "grow", "")
-	if p := get(t, s, 1, 1); p.Size != 12 || p.GrowStreak != 2 || p.BestGrow != 2 {
+	if p := get(t, s, 1, 1); p.Size != 18 || p.GrowStreak != 2 || p.BestGrow != 2 {
 		t.Fatal(p)
 	}
 	s.now = func() time.Time { return time.Date(2026, 10, 3, 3, 0, 0, 0, time.UTC) }
@@ -84,7 +89,7 @@ func TestGrowConcurrentAndMidnight(t *testing.T) {
 		t.Fatal(p)
 	}
 	var count int
-	if e := s.db.QueryRow(`SELECT count(*) FROM game_grows`).Scan(&count); e != nil || count != 3 {
+	if e := s.db.QueryRow(`SELECT count(*) FROM game_grows`).Scan(&count); e != nil || count != 4 {
 		t.Fatalf("history=%d: %v", count, e)
 	}
 }
@@ -178,6 +183,7 @@ func TestDuelsIndependentAtomicAndValidation(t *testing.T) {
 		t.Fatal(a, b)
 	}
 	s.random = func(n int) int { return 1 }
+	s.duelRandom = func() (int, error) { return 1, nil }
 	d := command(t, s, 1, 1, "duelo", "10")
 	if _, e := s.Accept(1, d.DuelID, 2, "B"); e != nil {
 		t.Fatal(e)
@@ -349,6 +355,7 @@ func TestLoanRequiresGrowthInCurrentGroup(t *testing.T) {
 	command(t, s, 1, 2, "grow", "")
 	d := command(t, s, 1, 1, "duelo", "6")
 	s.random = func(int) int { return 1 }
+	s.duelRandom = func() (int, error) { return 1, nil }
 	if _, err := s.Accept(1, d.DuelID, 2, "Oponente"); err != nil {
 		t.Fatal(err)
 	}

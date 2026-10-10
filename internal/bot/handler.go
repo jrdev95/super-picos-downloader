@@ -58,14 +58,14 @@ TikTok, Instagram, Threads, X/Twitter, Reddit, YouTube Shorts e Erome.
 
 🍆 <b>No grupo, tamanho é documento:</b>
 
-/grow — Cresça de 0 a 16 cm por dia.
+/grow — Cresça de 0 a 16 cm a cada 6 horas.
 /rank — Veja quem tem o maior do grupo.
 /duelo valor — Aposte seus centímetros. Ex.: <code>/duelo 10</code>.
 /emprestimo — Zerou? Tente a sorte com o banco.
 /status — Confira seu tamanho, vitórias e dívida.
 /limpar confirmar — Zera o minigame do grupo. Só administradores.
 
-⏰ O /grow libera novamente à meia-noite, no horário de Fortaleza.
+⏰ O /grow libera novamente 6 horas após sua última tentativa.
 ⚔️ Duelo é sorte: 50% para cada lado. Pal grande não garante vitória.
 🏦 Pegou empréstimo? O banco desconta dos próximos crescimentos até quitar.
 

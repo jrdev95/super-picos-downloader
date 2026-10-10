@@ -1,10 +1,12 @@
 package minigame
 
 import (
+	cryptorand "crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -17,16 +19,18 @@ import (
 
 // Store serializes local transactions; SQLite also locks writers across processes.
 type Store struct {
-	db       *sql.DB
-	location *time.Location
-	now      func() time.Time
-	random   func(int) int
+	db         *sql.DB
+	location   *time.Location
+	now        func() time.Time
+	random     func(int) int
+	duelRandom func() (int, error)
 }
 type Player struct {
 	ID                                                    int64
 	Name                                                  string
 	Size, Debt                                            int64
 	LastGrow                                              string
+	LastGrowAt                                            time.Time
 	GrowStreak, BestGrow, Duels, Wins, WinStreak, BestWin int64
 	Won, Lost                                             int64
 }
@@ -52,7 +56,7 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	s := &Store{db: db, location: loc, now: time.Now, random: rand.IntN}
+	s := &Store{db: db, location: loc, now: time.Now, random: rand.IntN, duelRandom: randomDuelSide}
 	_, err = db.Exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
  CREATE TABLE IF NOT EXISTS game_lock (id INTEGER PRIMARY KEY, value INTEGER NOT NULL);
  INSERT OR IGNORE INTO game_lock VALUES (1,0);
@@ -67,6 +71,21 @@ func Open(path string) (*Store, error) {
 	return s, nil
 }
 func (s *Store) Close() error { return s.db.Close() }
+
+const growInterval = 6 * time.Hour
+
+func randomDuelSide() (int, error) {
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(2))
+	if err != nil {
+		return 0, fmt.Errorf("falha ao sortear duelo: %w", err)
+	}
+	return int(n.Int64()), nil
+}
+
+func growWait(next, now time.Time) string {
+	minutes := int((next.Sub(now) + time.Minute - 1) / time.Minute)
+	return fmt.Sprintf("⏳ Próxima tentativa em %dh %dm.", minutes/60, minutes%60)
+}
 func (s *Store) transaction(fn func(*sql.Tx) error) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -172,12 +191,10 @@ func (s *Store) Command(chat, id int64, name, command, args string) (result Resu
 		}
 		switch command {
 		case "grow":
-			next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, s.location)
-			minutes := int(next.Sub(now).Minutes())
-			wait := fmt.Sprintf("⏳ Próxima tentativa em %dh %dm.", minutes/60, minutes%60)
-			if p.LastGrow >= day {
-				return RuleError("🍆 Você já cresceu hoje. " + wait)
+			if !p.LastGrowAt.IsZero() && now.Before(p.LastGrowAt.Add(growInterval)) {
+				return RuleError("🍆 Seu pal ainda está descansando. " + growWait(p.LastGrowAt.Add(growInterval), now))
 			}
+			wait := growWait(now.Add(growInterval), now)
 			gross := s.roll()
 			paid := int64(0)
 			if p.Debt > 0 {
@@ -185,14 +202,19 @@ func (s *Store) Command(chat, id int64, name, command, args string) (result Resu
 			}
 			p.Size += gross - paid
 			p.Debt -= paid
-			if p.LastGrow == now.AddDate(0, 0, -1).Format("2006-01-02") {
+			if p.LastGrow == day {
+				// Multiple attempts on the same day do not inflate daily streaks.
+			} else if p.LastGrow == now.AddDate(0, 0, -1).Format("2006-01-02") {
 				p.GrowStreak++
 			} else {
 				p.GrowStreak = 1
 			}
 			p.BestGrow = max(p.BestGrow, p.GrowStreak)
 			p.LastGrow = day
-			if _, e = tx.Exec(`INSERT INTO game_grows VALUES(?,?,?,?,?)`, chat, id, day, gross, paid); e != nil {
+			p.LastGrowAt = now.UTC()
+			// Keep the existing schema and legacy daily records; new keys store
+			// full timestamps so several attempts per day can be recorded.
+			if _, e = tx.Exec(`INSERT INTO game_grows VALUES(?,?,?,?,?)`, chat, id, p.LastGrowAt.Format(time.RFC3339Nano), gross, paid); e != nil {
 				return e
 			}
 			if e = save(tx, chat, p); e != nil {
@@ -264,12 +286,12 @@ func (s *Store) Command(chat, id int64, name, command, args string) (result Resu
 				mark := ""
 				if q.LastGrow != "" && q.LastGrow < now.AddDate(0, 0, -7).Format("2006-01-02") {
 					mark = " [~]"
-				} else if q.LastGrow != day {
+				} else if q.LastGrowAt.IsZero() || !now.Before(q.LastGrowAt.Add(growInterval)) {
 					mark = " [+]"
 				}
 				fmt.Fprintf(&out, "%d | %s -- %d cm%s\n", i+1, q.Name, q.Size, mark)
 			}
-			out.WriteString("\n[+] Ainda não cresceu o pal hoje.\n[~] Não cresceu o pal há mais de 7 dias.")
+			out.WriteString("\n[+] Já pode tentar crescer novamente.\n[~] Não cresceu o pal há mais de 7 dias.")
 			result.Text = out.String()
 		case "status":
 			players, e := ranking(tx, chat)
@@ -336,7 +358,14 @@ func (s *Store) Accept(chat, duel, id int64, name string) (text string, err erro
 			return RuleError("Os dois precisam ter saldo para essa aposta.")
 		}
 		winner, loser := a, b
-		if s.random(2) == 1 {
+		side, e := s.duelRandom()
+		if e != nil {
+			return e
+		}
+		if side != 0 && side != 1 {
+			return errors.New("resultado inválido no sorteio do duelo")
+		}
+		if side == 1 {
 			winner, loser = b, a
 		}
 		winner.Size += amount
