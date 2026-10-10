@@ -21,6 +21,11 @@ func (b *Bot) handleMessage(message *tgbotapi.Message) {
 	if message == nil {
 		return
 	}
+	if b.game != nil && groupChat(message.Chat) && message.From != nil && !message.From.IsBot && message.SenderChat == nil {
+		if err := b.game.RememberUsername(message.Chat.ID, message.From.ID, message.From.UserName); err != nil {
+			slog.Error("falha ao registrar identidade do jogador", "error", err)
+		}
+	}
 
 	if message.IsCommand() {
 		b.handleCommand(message)
@@ -61,6 +66,7 @@ TikTok, Instagram, Threads, X/Twitter, Reddit, YouTube Shorts e Erome.
 /grow — Cresça de 0 a 16 cm a cada 6 horas.
 /rank — Veja quem tem o maior do grupo.
 /duelo valor — Aposte seus centímetros. Ex.: <code>/duelo 10</code>.
+/doar quantidade @usuário — Doe centímetros (função temporária).
 /emprestimo — Zerou? Tente a sorte com o banco.
 /status — Confira seu tamanho, vitórias e dívida.
 /limpar confirmar — Zera o minigame do grupo. Só administradores.

@@ -63,6 +63,7 @@ func Open(path string) (*Store, error) {
  CREATE TABLE IF NOT EXISTS game_players (chat INTEGER NOT NULL, user INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(chat,user));
  CREATE TABLE IF NOT EXISTS game_grows (chat INTEGER NOT NULL,user INTEGER NOT NULL,day TEXT NOT NULL,gross INTEGER NOT NULL,paid INTEGER NOT NULL,PRIMARY KEY(chat,user,day));
  CREATE TABLE IF NOT EXISTS game_duels (id INTEGER PRIMARY KEY AUTOINCREMENT,chat INTEGER NOT NULL,creator INTEGER NOT NULL,amount INTEGER NOT NULL CHECK(amount>0),done INTEGER NOT NULL DEFAULT 0);
+ CREATE TABLE IF NOT EXISTS game_usernames (chat INTEGER NOT NULL,user INTEGER NOT NULL,username TEXT NOT NULL,PRIMARY KEY(chat,user),UNIQUE(chat,username));
  `)
 	if err != nil {
 		db.Close()

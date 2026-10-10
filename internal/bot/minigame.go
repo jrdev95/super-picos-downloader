@@ -29,7 +29,7 @@ func gameError(err error) string {
 func (b *Bot) handleGameCommand(m *tgbotapi.Message) bool {
 	command := m.Command()
 	switch command {
-	case "grow", "rank", "duelo", "emprestimo", "status", "limpar":
+	case "grow", "rank", "duelo", "emprestimo", "status", "limpar", "doar":
 	default:
 		return false
 	}
@@ -51,6 +51,10 @@ func (b *Bot) handleGameCommand(m *tgbotapi.Message) bool {
 		return true
 	}
 	args := strings.TrimSpace(m.CommandArguments())
+	if command == "doar" {
+		b.handleDonation(m, args)
+		return true
+	}
 	if command == "limpar" {
 		member, err := b.api.GetChatMember(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: tgbotapi.ChatConfigWithUser{ChatID: m.Chat.ID, UserID: m.From.ID}})
 		if err != nil {
