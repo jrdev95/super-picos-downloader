@@ -23,7 +23,7 @@ type Store struct {
 	location   *time.Location
 	now        func() time.Time
 	random     func(int) int
-	duelRandom func() (int, error)
+	duelRandom func(int) (int, error)
 }
 type Player struct {
 	ID                                                    int64
@@ -75,8 +75,8 @@ func (s *Store) Close() error { return s.db.Close() }
 
 const growInterval = 6 * time.Hour
 
-func randomDuelSide() (int, error) {
-	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(2))
+func randomDuelSide(total int) (int, error) {
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(total)))
 	if err != nil {
 		return 0, fmt.Errorf("falha ao sortear duelo: %w", err)
 	}
@@ -359,14 +359,15 @@ func (s *Store) Accept(chat, duel, id int64, name string) (text string, err erro
 			return RuleError("Os dois precisam ter saldo para essa aposta.")
 		}
 		winner, loser := a, b
-		side, e := s.duelRandom()
+		weightA, weightB := duelWeight(a.WinStreak), duelWeight(b.WinStreak)
+		draw, e := s.duelRandom(weightA + weightB)
 		if e != nil {
 			return e
 		}
-		if side != 0 && side != 1 {
+		if draw < 0 || draw >= weightA+weightB {
 			return errors.New("resultado inválido no sorteio do duelo")
 		}
-		if side == 1 {
+		if draw >= weightA {
 			winner, loser = b, a
 		}
 		winner.Size += amount
@@ -393,6 +394,9 @@ func (s *Store) Accept(chat, duel, id int64, name string) (text string, err erro
 			return e
 		}
 		text = fmt.Sprintf("⚔️ DU-E-LO!\n\n🏆 %s levou a melhor.\n🍆 %d cm agora.\n\n💀 %s perdeu %d cm.\n🍆 Restaram %d cm.\n\n📊 Rank após a treta\n%s → %dº\n%s → %dº\n\n🔥 Vencedor\nWin rate: %d%%\nStreak: %d\nMelhor streak: %d\n\n☠️ Perdedor\nWin rate: %d%%", winner.Name, winner.Size, loser.Name, amount, loser.Size, winner.Name, position(players, winner.ID), loser.Name, position(players, loser.ID), rate(winner), winner.WinStreak, winner.BestWin, rate(loser))
+		if weightA != 100 || weightB != 100 {
+			text += fmt.Sprintf("\n\n🧪 Chances antes do duelo: %s %.1f%% | %s %.1f%%. Ajuste por vitórias consecutivas.", a.Name, 100*float64(weightA)/float64(weightA+weightB), b.Name, 100*float64(weightB)/float64(weightA+weightB))
+		}
 		return nil
 	})
 	return

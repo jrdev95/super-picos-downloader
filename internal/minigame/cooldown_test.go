@@ -73,7 +73,12 @@ func TestDuelBothSidesWinRegardlessOfSizeOrHistory(t *testing.T) {
 			seed(t, s, 1, Player{ID: 1, Size: sizes[0], Wins: 20, WinStreak: 20})
 			seed(t, s, 1, Player{ID: 2, Size: sizes[1]})
 			s.random = func(int) int { t.Fatal("duel used growth RNG"); return 0 }
-			s.duelRandom = func() (int, error) { return side, nil }
+			s.duelRandom = func(n int) (int, error) {
+				if side == 0 {
+					return 0, nil
+				}
+				return n - 1, nil
+			}
 			d := command(t, s, 1, 1, "duelo", "1")
 			if _, err := s.Accept(1, d.DuelID, 2, "B"); err != nil {
 				t.Fatal(err)
@@ -91,7 +96,7 @@ func TestDuelRandomFailureRollsBack(t *testing.T) {
 	seed(t, s, 1, Player{ID: 1, Size: 10})
 	seed(t, s, 1, Player{ID: 2, Size: 20})
 	d := command(t, s, 1, 1, "duelo", "2")
-	s.duelRandom = func() (int, error) { return 0, errors.New("entropy failed") }
+	s.duelRandom = func(int) (int, error) { return 0, errors.New("entropy failed") }
 	if _, err := s.Accept(1, d.DuelID, 2, "B"); err == nil {
 		t.Fatal("ignored random failure")
 	}
@@ -104,7 +109,7 @@ func TestDuelRandomFailureRollsBack(t *testing.T) {
 	}); err != nil || done != 0 {
 		t.Fatal(done, err)
 	}
-	s.duelRandom = func() (int, error) { return 1, nil }
+	s.duelRandom = func(n int) (int, error) { return n - 1, nil }
 	if _, err := s.Accept(1, d.DuelID, 2, "B"); err != nil {
 		t.Fatal(err)
 	}

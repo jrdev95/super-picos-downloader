@@ -72,7 +72,7 @@ TikTok, Instagram, Threads, X/Twitter, Reddit, YouTube Shorts e Erome.
 /limpar confirmar — Zera o minigame do grupo. Só administradores.
 
 ⏰ O /grow libera novamente 6 horas após sua última tentativa.
-⚔️ Duelo é sorte: 50% para cada lado. Pal grande não garante vitória.
+⚔️ Duelo é sorte. Em teste: 3 ou mais vitórias seguidas reduzem sua chance; perder remove a penalidade. Pal grande não garante vitória.
 🏦 Pegou empréstimo? O banco desconta dos próximos crescimentos até quitar.
 
 <b>Mande um link ou digite /grow e tire esse pal do repouso!</b>`

@@ -18,7 +18,7 @@ func testStore(t *testing.T) *Store {
 	}
 	t.Cleanup(func() { s.Close() })
 	s.now = func() time.Time { return time.Date(2026, 9, 30, 12, 0, 0, 0, s.location) }
-	s.duelRandom = func() (int, error) { return 0, nil }
+	s.duelRandom = func(int) (int, error) { return 0, nil }
 	s.random = func(n int) int {
 		if n == 84 {
 			return 36
@@ -183,7 +183,7 @@ func TestDuelsIndependentAtomicAndValidation(t *testing.T) {
 		t.Fatal(a, b)
 	}
 	s.random = func(n int) int { return 1 }
-	s.duelRandom = func() (int, error) { return 1, nil }
+	s.duelRandom = func(n int) (int, error) { return n - 1, nil }
 	d := command(t, s, 1, 1, "duelo", "10")
 	if _, e := s.Accept(1, d.DuelID, 2, "B"); e != nil {
 		t.Fatal(e)
@@ -355,7 +355,7 @@ func TestLoanRequiresGrowthInCurrentGroup(t *testing.T) {
 	command(t, s, 1, 2, "grow", "")
 	d := command(t, s, 1, 1, "duelo", "6")
 	s.random = func(int) int { return 1 }
-	s.duelRandom = func() (int, error) { return 1, nil }
+	s.duelRandom = func(n int) (int, error) { return n - 1, nil }
 	if _, err := s.Accept(1, d.DuelID, 2, "Oponente"); err != nil {
 		t.Fatal(err)
 	}
