@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -24,6 +26,7 @@ import (
 type GalleryDLStrategy struct {
 	path        string
 	cookiesFile string
+	run         func(context.Context, []string) (string, string, error)
 }
 
 func NewGalleryDLStrategy(
@@ -65,28 +68,45 @@ func (s *GalleryDLStrategy) Download(
 		)
 	}
 
-	args := []string{
-		"--no-input",
+	result, err := s.attempt(ctx, rawURL, outputDir, "")
+	if !errors.Is(err, downloader.ErrAuthentication) || ctx.Err() != nil {
+		return result, err
 	}
+	cookiesFile := strings.TrimSpace(os.ExpandEnv(s.cookiesFile))
+	if cookiesFile == "" {
+		return nil, err
+	}
+	info, statErr := os.Stat(cookiesFile)
+	if statErr != nil {
+		return nil, fmt.Errorf("%w: arquivo de cookies indisponível: %v", downloader.ErrAuthentication, statErr)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%w: cookies devem ser um arquivo", downloader.ErrAuthentication)
+	}
+	slog.Info("Instagram exige autenticação; repetindo download com cookies")
+	return s.attempt(ctx, rawURL, outputDir, cookiesFile)
+}
 
-	cookiesFile := strings.TrimSpace(
-		os.ExpandEnv(s.cookiesFile),
-	)
-
-	if cookiesFile != "" {
-		if _, err := os.Stat(cookiesFile); err != nil {
-			return nil, fmt.Errorf(
-				"arquivo de cookies do Instagram indisponível %q: %w",
-				cookiesFile,
-				err,
-			)
+func (s *GalleryDLStrategy) attempt(ctx context.Context, rawURL, outputDir, cookiesFile string) (*media.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	// Isola arquivos parciais de cada tentativa para não misturar resultados.
+	attemptDir, err := os.MkdirTemp(outputDir, "instagram-")
+	if err != nil {
+		return nil, err
+	}
+	success := false
+	defer func() {
+		if !success {
+			_ = os.RemoveAll(attemptDir)
 		}
-
-		args = append(
-			args,
-			"--cookies",
-			cookiesFile,
-		)
+	}()
+	outputDir = attemptDir
+	// Ignora configurações e sessões persistidas fora do arquivo explícito.
+	args := []string{"--no-input", "--config-ignore", "--cache-file", ":memory:"}
+	if cookiesFile != "" {
+		args = append(args, "--cookies", cookiesFile)
 	}
 
 	args = append(
@@ -97,44 +117,27 @@ func (s *GalleryDLStrategy) Download(
 		rawURL,
 	)
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	cmd := executil.CommandContext(
-		ctx,
-		s.path,
-		args...,
-	)
-
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, ctxErr
-		}
-
-		message := strings.TrimSpace(stderr.String())
+	run := s.run
+	if run == nil {
+		run = s.runCommand
+	}
+	stdout, stderr, commandErr := run(ctx, args)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, ctxErr
+	}
+	if commandErr != nil {
+		message := strings.TrimSpace(stderr)
 		if message == "" {
-			message = strings.TrimSpace(stdout.String())
+			message = strings.TrimSpace(stdout)
 		}
-
-		if message == "" {
-			return nil, fmt.Errorf(
-				"gallery-dl falhou: %w",
-				err,
-			)
+		if requiresAuthentication(message) {
+			return nil, fmt.Errorf("%w: %s", downloader.ErrAuthentication, message)
 		}
-
-		return nil, fmt.Errorf(
-			"gallery-dl falhou: %w: %s",
-			err,
-			message,
-		)
+		return nil, fmt.Errorf("gallery-dl falhou: %w: %s", commandErr, message)
 	}
 
 	items := itemsFromOutput(
-		stdout.String(),
+		stdout,
 		outputDir,
 	)
 
@@ -151,6 +154,7 @@ func (s *GalleryDLStrategy) Download(
 		return nil, downloader.ErrNoMedia
 	}
 
+	success = true
 	return &media.Result{
 		Platform: platform.Instagram,
 		URL:      rawURL,
@@ -285,4 +289,22 @@ func instagramMediaType(
 	default:
 		return media.Unknown
 	}
+}
+
+func (s *GalleryDLStrategy) runCommand(ctx context.Context, args []string) (string, string, error) {
+	var stdout, stderr bytes.Buffer
+	cmd := executil.CommandContext(ctx, s.path, args...)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	return stdout.String(), stderr.String(), err
+}
+
+func requiresAuthentication(message string) bool {
+	message = strings.ToLower(message)
+	for _, marker := range []string{"loginrequired", "login required", "login_required", "please log in", "authentication required", "cookies are required", "requires authentication", "you must be logged in"} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }

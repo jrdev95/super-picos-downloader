@@ -48,12 +48,12 @@ func (s *Strategy) Download(
 	}
 
 	if outputDir == "" {
-		return nil, fmt.Errorf("diretório de saída não definido")
+		return nil, fmt.Errorf("diretÃ³rio de saÃ­da nÃ£o definido")
 	}
 
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return nil, fmt.Errorf(
-			"falha ao preparar diretório de saída: %w",
+			"falha ao preparar diretÃ³rio de saÃ­da: %w",
 			err,
 		)
 	}
@@ -78,6 +78,9 @@ func (s *Strategy) Download(
 		url,
 	}
 
+	if detectedPlatform == platform.Instagram {
+		args = append([]string{"--ignore-config"}, args...)
+	}
 	if s.lowMemory {
 		args = append([]string{"--postprocessor-args", "ffmpeg_i:-threads 1", "--postprocessor-args", "ffmpeg_o:-threads 1 -filter_threads 1 -filter_complex_threads 1"}, args...)
 	}

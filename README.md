@@ -7,7 +7,7 @@ Bot do Telegram em Go que baixa mídias de links e responde no próprio chat. Va
 | Plataforma | Conteúdo | Estratégia |
 | --- | --- | --- |
 | TikTok | Vídeos e carrosséis de fotos | `yt-dlp` + `gallery-dl` |
-| Instagram | Fotos, vídeos, Reels e carrosséis | `gallery-dl` + cookies, com fallback `yt-dlp` |
+| Instagram | Fotos, vídeos, Reels e carrosséis | `gallery-dl` anônimo, cookies quando necessário e fallback `yt-dlp` |
 | Threads | Fotos, vídeos e carrosséis | Downloader próprio |
 | X / Twitter | Fotos, vídeos e álbuns | `gallery-dl` + fallback `yt-dlp` |
 | YouTube | Apenas Shorts | `yt-dlp` |
@@ -352,3 +352,5 @@ Para validar: `go test ./...` e `go vet ./...`. Os scripts de build existentes c
 ### Publicações sem mídia
 
 Links de plataformas suportadas que retornam ausência de mídia são ignorados, sem resposta ou mensagem temporária de download. O status de preparação aparece somente depois de obter mídia. Em uma cadeia de tentativas, resultados sem mídia e estratégias incompatíveis podem ser ignorados juntos; erros de acesso, autenticação, formato não suportado, indisponibilidade ou download continuam sendo informados, mesmo quando outra tentativa não encontra mídia.
+
+O Instagram tenta baixar sem sessão primeiro. Apenas um erro explícito de autenticação aciona uma segunda tentativa com `INSTAGRAM_COOKIES_FILE`. Cookies ausentes não impedem downloads públicos. Erros de rede, HTTP 429 e ausência de mídia não acionam cookies. Configurações e sessões globais do gallery-dl são ignoradas nessa integração.
