@@ -354,3 +354,15 @@ Para validar: `go test ./...` e `go vet ./...`. Os scripts de build existentes c
 Links de plataformas suportadas que retornam ausência de mídia são ignorados, sem resposta ou mensagem temporária de download. O status de preparação aparece somente depois de obter mídia. Em uma cadeia de tentativas, resultados sem mídia e estratégias incompatíveis podem ser ignorados juntos; erros de acesso, autenticação, formato não suportado, indisponibilidade ou download continuam sendo informados, mesmo quando outra tentativa não encontra mídia.
 
 O Instagram tenta baixar sem sessão primeiro. Apenas um erro explícito de autenticação aciona uma segunda tentativa com `INSTAGRAM_COOKIES_FILE`. Cookies ausentes não impedem downloads públicos. Erros de rede, HTTP 429 sem indicação de login e ausência de mídia não acionam cookies. Erros com URL de redirecionamento para `/accounts/login/` do Instagram acionam uma única tentativa com cookies, inclusive quando essa página retorna 429. As requisições do gallery-dl usam timeout de 15 segundos, sem repetições automáticas nem espera por 429; o limite geral do download permanece em 3 minutos. Configurações e sessões globais do gallery-dl são ignoradas nessa integração.
+
+### Cobalt para Instagram
+
+Configure `COBALT_API_URL=http://127.0.0.1:9000/` no `.env` para tentar Cobalt primeiro, sem cookies. Vazio desativa. Em caso de falha, usa gallery-dl anônimo, com cookies apenas quando exige login, seguido do fallback yt-dlp existente. Cobalt usa até 60 segundos dos 3 minutos totais, 30 segundos por requisição e até 100 MiB por arquivo. Álbuns preservam a ordem e tentativas incompletas são descartadas. Suporta picker, redirect e tunnel com JPEG, PNG, WebP, MP4 e WebM; outros formatos acionam fallback.
+
+Encerre `cobalt-test` se ainda estiver rodando e crie o serviço persistente na VPS:
+
+```bash
+docker run -d --name super-picos-cobalt --restart unless-stopped --init --read-only -p 127.0.0.1:9000:9000 -e API_URL=http://127.0.0.1:9000/ ghcr.io/imputnet/cobalt:11
+```
+
+Não monte cookies nem configure COOKIE_PATH. Esse endereço pressupõe que o bot rode no host. Atualize o executável, configure `.env` e reinicie `super-picos.service`. Teste fotos, carrosséis e Reels; os diagnósticos aparecem apenas nos logs.

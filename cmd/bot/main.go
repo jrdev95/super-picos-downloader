@@ -105,6 +105,7 @@ func main() {
 	)
 
 	instagramDownloader := instagram.New(
+		instagram.NewCobaltStrategy(cfg.CobaltAPIURL),
 		instagramGalleryDLStrategy,
 		ytdlpStrategy,
 	)

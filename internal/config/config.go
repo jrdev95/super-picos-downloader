@@ -18,6 +18,7 @@ type Config struct {
 	ReduceMedia          bool
 	LowMemory            bool
 	InstagramCookiesFile string
+	CobaltAPIURL         string
 }
 
 func Load() (*Config, error) {
@@ -56,6 +57,7 @@ func Load() (*Config, error) {
 	}
 	return &Config{
 		BotToken:             botToken,
+		CobaltAPIURL:         strings.TrimSpace(os.Getenv("COBALT_API_URL")),
 		MaxWorkers:           maxWorkers,
 		LowMemory:            lowMemory,
 		ReduceMedia:          reduceMedia,

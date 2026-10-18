@@ -105,6 +105,7 @@ func main() {
 		os.Getenv("INSTAGRAM_COOKIES_FILE"),
 	)
 	instagramDownloader := instagram.New(
+		instagram.NewCobaltStrategy(os.Getenv("COBALT_API_URL")),
 		instagramGalleryDL,
 		ytdlpStrategy,
 	)
