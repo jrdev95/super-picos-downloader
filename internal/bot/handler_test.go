@@ -25,7 +25,7 @@ func (d noMediaDownloader) Download(context.Context, string, string) (*media.Res
 	return d.result, d.err
 }
 
-func TestProcessDownloadSilencesOnlyNoMedia(t *testing.T) {
+func TestProcessDownloadSilentErrors(t *testing.T) {
 	for _, site := range []platform.Platform{platform.Threads, platform.Instagram, platform.Twitter, platform.TikTok, platform.YouTube, platform.Erome} {
 		for _, tc := range []struct {
 			name    string
@@ -33,6 +33,8 @@ func TestProcessDownloadSilencesOnlyNoMedia(t *testing.T) {
 			replies int
 		}{
 			{"text post", downloader.ErrNoMedia, 0},
+			{"timeout", context.DeadlineExceeded, 0},
+			{"wrapped timeout", fmt.Errorf("download: %w", context.DeadlineExceeded), 0},
 			{"fallback empty", errors.Join(downloader.ErrUnsupported, downloader.ErrNoMedia), 0},
 			{"blocked fallback", errors.Join(errors.New("HTTP 403 Blocked"), downloader.ErrNoMedia), 1},
 			{"authentication", downloader.ErrAuthentication, 1},

@@ -199,10 +199,9 @@ func (b *Bot) processDownload(
 			"error", err,
 		)
 
-		b.reply(
-			message,
-			downloadErrorMessage(err),
-		)
+		if text := downloadErrorMessage(err); text != "" {
+			b.reply(message, text)
+		}
 		return
 	}
 
@@ -296,7 +295,7 @@ func (b *Bot) deleteMessage(
 func downloadErrorMessage(err error) string {
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return "⏱️ O download demorou mais do que o esperado e foi cancelado."
+		return ""
 
 	case errors.Is(err, downloader.ErrAuthentication):
 		return "🔒 Essa publicação exige autenticação ou não está acessível publicamente."
