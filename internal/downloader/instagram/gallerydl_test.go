@@ -54,6 +54,7 @@ func TestAnonymousThenCookies(t *testing.T) {
 	}{
 		{"public", "", false, 1},
 		{"login", "LoginRequired: Please log in", true, 2},
+		{"login redirect", "HttpError: '429 Too Many Requests' for 'https://www.instagram.com/accounts/login/?next=/api/v1/media/4010368958171287586/info/'", true, 2},
 		{"missing cookies", "LoginRequired", false, 1},
 		{"rate limit", "HTTP 429 Too Many Requests", true, 1},
 		{"network", "connection timed out", true, 1},
@@ -74,6 +75,11 @@ func TestAnonymousThenCookies(t *testing.T) {
 				joined := strings.Join(args, " ")
 				if !strings.Contains(joined, "--config-ignore") || !strings.Contains(joined, ":memory:") {
 					t.Fatal("global session not isolated")
+				}
+				for _, option := range []string{"--http-timeout 15", "--retries 0", "--sleep-429 0"} {
+					if !strings.Contains(joined, option) {
+						t.Fatalf("missing bounded request option: %s", option)
+					}
 				}
 				hasCookies := strings.Contains(joined, "--cookies")
 				if hasCookies != (calls == 2) {
@@ -102,7 +108,7 @@ func TestAnonymousThenCookies(t *testing.T) {
 			if calls != tc.calls {
 				t.Fatalf("calls=%d want=%d", calls, tc.calls)
 			}
-			if tc.name == "public" || tc.name == "login" {
+			if tc.name == "public" || tc.name == "login" || tc.name == "login redirect" {
 				if err != nil || len(result.Items) != 1 {
 					t.Fatalf("result=%v err=%v", result, err)
 				}

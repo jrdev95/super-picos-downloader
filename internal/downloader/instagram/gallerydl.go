@@ -104,7 +104,8 @@ func (s *GalleryDLStrategy) attempt(ctx context.Context, rawURL, outputDir, cook
 	}()
 	outputDir = attemptDir
 	// Ignora configurações e sessões persistidas fora do arquivo explícito.
-	args := []string{"--no-input", "--config-ignore", "--cache-file", ":memory:"}
+	args := []string{"--no-input", "--config-ignore", "--cache-file", ":memory:",
+		"--http-timeout", "15", "--retries", "0", "--sleep-429", "0"}
 	if cookiesFile != "" {
 		args = append(args, "--cookies", cookiesFile)
 	}
@@ -301,7 +302,7 @@ func (s *GalleryDLStrategy) runCommand(ctx context.Context, args []string) (stri
 
 func requiresAuthentication(message string) bool {
 	message = strings.ToLower(message)
-	for _, marker := range []string{"loginrequired", "login required", "login_required", "please log in", "authentication required", "cookies are required", "requires authentication", "you must be logged in"} {
+	for _, marker := range []string{"loginrequired", "login required", "login_required", "please log in", "authentication required", "cookies are required", "requires authentication", "you must be logged in", "https://www.instagram.com/accounts/login/", "https://instagram.com/accounts/login/"} {
 		if strings.Contains(message, marker) {
 			return true
 		}
