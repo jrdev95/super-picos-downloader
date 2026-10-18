@@ -26,7 +26,7 @@ func (d noMediaDownloader) Download(context.Context, string, string) (*media.Res
 }
 
 func TestProcessDownloadSilencesOnlyNoMedia(t *testing.T) {
-	for _, site := range []platform.Platform{platform.Threads, platform.Instagram, platform.Twitter, platform.Reddit, platform.TikTok, platform.YouTube, platform.Erome} {
+	for _, site := range []platform.Platform{platform.Threads, platform.Instagram, platform.Twitter, platform.TikTok, platform.YouTube, platform.Erome} {
 		for _, tc := range []struct {
 			name    string
 			err     error

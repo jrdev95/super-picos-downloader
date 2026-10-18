@@ -46,7 +46,6 @@ func TestDoesNotHandleOtherPlatforms(t *testing.T) {
 		platform.Instagram,
 		platform.Threads,
 		platform.Twitter,
-		platform.Reddit,
 		platform.YouTube,
 		platform.Erome,
 	}

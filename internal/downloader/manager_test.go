@@ -138,10 +138,10 @@ func TestManagerPropagatesDownloadError(t *testing.T) {
 
 func TestManagerRejectsInvalidResult(t *testing.T) {
 	fake := &fakeDownloader{
-		supportedPlatform: platform.Reddit,
+		supportedPlatform: platform.Twitter,
 		result: &media.Result{
-			Platform: platform.Reddit,
-			URL:      "https://reddit.com/r/test/comments/123",
+			Platform: platform.Twitter,
+			URL:      "https://x.com/test/status/123",
 		},
 	}
 
@@ -149,8 +149,8 @@ func TestManagerRejectsInvalidResult(t *testing.T) {
 
 	_, err := manager.Download(
 		context.Background(),
-		platform.Reddit,
-		"https://reddit.com/r/test/comments/123",
+		platform.Twitter,
+		"https://x.com/test/status/123",
 		"/tmp",
 	)
 

@@ -51,12 +51,12 @@ func TestDetect(t *testing.T) {
 		{
 			name:     "Reddit",
 			url:      "https://www.reddit.com/r/teste/comments/123/",
-			expected: Reddit,
+			expected: Unknown,
 		},
 		{
 			name:     "Reddit short",
 			url:      "https://redd.it/123",
-			expected: Reddit,
+			expected: Unknown,
 		},
 		{
 			name:     "YouTube normal não suportado",
@@ -91,7 +91,7 @@ func TestDetect(t *testing.T) {
 		{
 			name:     "Reddit share",
 			url:      "https://www.reddit.com/r/teste/s/ABC123",
-			expected: Reddit,
+			expected: Unknown,
 		},
 		{
 			name:     "Plataforma desconhecida",

@@ -11,10 +11,9 @@ Bot do Telegram em Go que baixa mídias de links e responde no próprio chat. Va
 | Threads | Fotos, vídeos e carrosséis | Downloader próprio |
 | X / Twitter | Fotos, vídeos e álbuns | `gallery-dl` + fallback `yt-dlp` |
 | YouTube | Apenas Shorts | `yt-dlp` |
-| Reddit | Vídeo ou foto única | `yt-dlp` + RSS |
 | Erome | Fotos e vídeos | Downloader próprio |
 
-Galerias do Reddit ainda têm limitações. Conteúdos privados, removidos ou que exigem autenticação podem falhar. No Instagram, os cookies devem usar o formato Netscape/Mozilla, sem depender do perfil local do navegador.
+Conteúdos privados, removidos ou que exigem autenticação podem falhar. No Instagram, os cookies devem usar o formato Netscape/Mozilla, sem depender do perfil local do navegador.
 
 ## Funcionamento e limites
 
@@ -330,7 +329,7 @@ gofmt -w (Get-ChildItem -Recurse -Filter *.go cmd,internal | ForEach-Object Full
 | `scripts/` | Geração dos pacotes |
 | `packaging/` | Instaladores de inicialização automática |
 
-Próximas melhorias: galerias do Reddit, endpoint configurável da Bot API e automação de releases. Não versione tokens, cookies, binários, logs ou downloads de teste.
+Próximas melhorias: endpoint configurável da Bot API e automação de releases. Não versione tokens, cookies, binários, logs ou downloads de teste.
 
 ## Minigame do grupo
 

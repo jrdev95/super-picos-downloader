@@ -13,7 +13,6 @@ const (
 	TikTok    Platform = "tiktok"
 	Threads   Platform = "threads"
 	Twitter   Platform = "twitter"
-	Reddit    Platform = "reddit"
 	YouTube   Platform = "youtube"
 	Erome     Platform = "erome"
 )
@@ -41,10 +40,6 @@ func Detect(rawURL string) Platform {
 	case matchesDomain(host, "x.com"),
 		matchesDomain(host, "twitter.com"):
 		return Twitter
-
-	case matchesDomain(host, "reddit.com"),
-		matchesDomain(host, "redd.it"):
-		return Reddit
 
 	case matchesDomain(host, "youtube.com") &&
 		strings.HasPrefix(path, "/shorts/"):
@@ -75,9 +70,6 @@ func (p Platform) DisplayName() string {
 
 	case Twitter:
 		return "X / Twitter"
-
-	case Reddit:
-		return "Reddit"
 
 	case YouTube:
 		return "YouTube Shorts"

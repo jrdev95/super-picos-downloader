@@ -15,7 +15,6 @@ import (
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/erome"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/gallerydl"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/instagram"
-	"github.com/jrdev95/super-picos-downloader/internal/downloader/reddit"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/shorts"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/threads"
 	"github.com/jrdev95/super-picos-downloader/internal/downloader/tiktok"
@@ -121,13 +120,6 @@ func main() {
 		ytdlpStrategy,
 	)
 
-	redditRSSStrategy := reddit.NewRSSStrategy()
-
-	redditDownloader := reddit.New(
-		ytdlpStrategy,
-		redditRSSStrategy,
-	)
-
 	eromeDownloader := erome.New()
 
 	downloadManager := downloader.NewManager(
@@ -136,7 +128,6 @@ func main() {
 		instagramDownloader,
 		threadsDownloader,
 		twitterDownloader,
-		redditDownloader,
 		eromeDownloader,
 	)
 

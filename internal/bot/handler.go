@@ -59,7 +59,7 @@ func (b *Bot) handleStart(message *tgbotapi.Message) {
 	const text = `👋 Bem-vindo ao Super Picos Downloader!
 
 📥 <b>Mande o link, que eu busco a mídia!</b>
-TikTok, Instagram, Threads, X/Twitter, Reddit, YouTube Shorts e Erome.
+TikTok, Instagram, Threads, X/Twitter, YouTube Shorts e Erome.
 
 🍆 <b>No grupo, tamanho é documento:</b>
 
