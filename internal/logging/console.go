@@ -28,7 +28,7 @@ func (h *ConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
 
 func (h *ConsoleHandler) Handle(_ context.Context, r slog.Record) error {
 	var b strings.Builder
-	fmt.Fprintf(&b, "[%s] %-5s %s\n", r.Time.Format("02/01 15:04:05"), r.Level, strconv.Quote(r.Message))
+	fmt.Fprintf(&b, "[%s] %-5s %s", r.Time.Format("02/01 15:04:05"), r.Level, strconv.Quote(r.Message))
 	for _, a := range h.attrs {
 		writeAttr(&b, "", a)
 	}
@@ -60,15 +60,7 @@ func writeAttr(b *strings.Builder, prefix string, a slog.Attr) {
 		value = a.Value.Duration().Round(1000000).String()
 	}
 	// Quote control characters so external output cannot manipulate the terminal.
-	lines := strings.Split(value, "\n")
-	for i, line := range lines {
-		line = strconv.Quote(strings.TrimSuffix(line, "\r"))
-		if i == 0 {
-			fmt.Fprintf(b, "  %s: %s\n", key, line)
-		} else {
-			fmt.Fprintf(b, "    %s\n", line)
-		}
-	}
+	fmt.Fprintf(b, " %s=%s", key, strconv.Quote(strings.Join(strings.Fields(value), " ")))
 }
 
 func (h *ConsoleHandler) WithAttrs(attrs []slog.Attr) slog.Handler {

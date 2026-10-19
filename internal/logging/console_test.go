@@ -15,7 +15,7 @@ func TestConsole(t *testing.T) {
 	logger.Debug("hidden")
 	logger.Error("download falhou", "error", errors.New("login required\nsecond strategy\x1b[31m"))
 	got := out.String()
-	for _, want := range []string{"ERROR", "worker: \"2\"", "download.error: \"login required\"", "    \"second strategy\\x1b[31m\""} {
+	for _, want := range []string{"ERROR", `worker="2"`, `download.error="login required second strategy\x1b[31m"`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in %q", want, got)
 		}
@@ -34,12 +34,12 @@ func TestConcurrentEvents(t *testing.T) {
 		go func() { defer wg.Done(); logger.With("worker", 1).Info("event", "items", 2) }()
 	}
 	wg.Wait()
-	blocks := strings.Split(strings.TrimSuffix(out.String(), "\n\n"), "\n\n")
+	blocks := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
 	if len(blocks) != 20 {
 		t.Fatalf("got %d events", len(blocks))
 	}
 	for _, block := range blocks {
-		if strings.Count(block, "\n") != 2 {
+		if strings.Count(block, "\n") != 0 {
 			t.Fatalf("interleaved event: %q", block)
 		}
 	}

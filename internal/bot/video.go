@@ -106,7 +106,7 @@ func prepareVideos(ctx context.Context, result *media.Result, run videoRunner) (
 				"-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", output}
 			started := time.Now()
 			compressErr = run(ctx, args...)
-			slog.Info("tentativa de compressão concluída", "attempt", attempt+1, "elapsed", time.Since(started), "crf", crf, "max_dimension", width, "error", compressErr)
+			slog.Debug("tentativa de compressão concluída", "attempt", attempt+1, "elapsed", time.Since(started), "crf", crf, "max_dimension", width, "error", compressErr)
 			if compressErr != nil {
 				break
 			}
@@ -120,7 +120,7 @@ func prepareVideos(ctx context.Context, result *media.Result, run videoRunner) (
 				break
 			}
 			size = compressed.Size()
-			slog.Info("tamanho após compressão", "original_bytes", info.Size(), "compressed_bytes", size)
+			slog.Debug("tamanho após compressão", "original_bytes", info.Size(), "compressed_bytes", size)
 			if size <= targetVideoBytes {
 				prepared.Items[i].Path = output
 				prepared.Items[i].Filename = "video.mp4"

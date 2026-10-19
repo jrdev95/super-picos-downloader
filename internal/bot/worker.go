@@ -54,16 +54,18 @@ func (b *Bot) worker(
 			)
 
 			b.processDownload(
-				ctx,
+				context.WithValue(ctx, workerLogKey{}, workerID),
 				job.message,
 				job.url,
 				job.platform,
 			)
 
-			slog.Info(
+			slog.Debug(
 				"worker finalizou download",
 				"worker_id", workerID,
 			)
 		}
 	}
 }
+
+type workerLogKey struct{}

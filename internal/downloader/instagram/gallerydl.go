@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jrdev95/super-picos-downloader/internal/logging"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -83,7 +84,8 @@ func (s *GalleryDLStrategy) Download(
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("%w: cookies devem ser um arquivo", downloader.ErrAuthentication)
 	}
-	slog.Info("Instagram exige autenticação; repetindo download com cookies")
+	logging.DownloadStep(ctx, "Instagram: cookies necessários")
+	slog.Debug("Instagram exige autenticação; repetindo download com cookies")
 	return s.attempt(ctx, rawURL, outputDir, cookiesFile)
 }
 

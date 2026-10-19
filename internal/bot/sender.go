@@ -277,5 +277,5 @@ func logMediaSend(started time.Time, items []media.Item, sendErr *error) {
 	if len(items) == 1 {
 		kind = string(items[0].Type)
 	}
-	slog.Info("envio ao Telegram concluído", "media_type", kind, "items", len(items), "bytes", bytes, "elapsed", time.Since(started), "success", *sendErr == nil)
+	slog.Debug("envio ao Telegram concluído", "media_type", kind, "items", len(items), "bytes", bytes, "elapsed", time.Since(started), "success", *sendErr == nil)
 }

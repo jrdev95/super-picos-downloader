@@ -52,7 +52,7 @@ func (s *CobaltStrategy) Download(parent context.Context, site platform.Platform
 			if parent.Err() != nil {
 				err = parent.Err()
 			} else {
-				slog.Warn("Cobalt falhou; tentando próximo downloader", "error", err)
+				slog.Debug("Cobalt falhou; tentando próximo downloader", "error", err)
 				err = fmt.Errorf("Cobalt: %v", err)
 			}
 		}
@@ -72,7 +72,9 @@ func (s *CobaltStrategy) Download(parent context.Context, site platform.Platform
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API HTTP %d", response.StatusCode)
+		var detail cobaltResponse
+		_ = json.NewDecoder(io.LimitReader(response.Body, 65536)).Decode(&detail)
+		return nil, fmt.Errorf("API HTTP %d: %s", response.StatusCode, detail.Error.Code)
 	}
 	var data cobaltResponse
 	if err = json.NewDecoder(io.LimitReader(response.Body, 2<<20)).Decode(&data); err != nil {
@@ -109,7 +111,7 @@ func (s *CobaltStrategy) Download(parent context.Context, site platform.Platform
 		}
 		result.Items = append(result.Items, downloaded)
 	}
-	slog.Info("download via Cobalt concluído", "items", len(result.Items))
+	slog.Debug("download via Cobalt concluído", "items", len(result.Items))
 	return result, nil
 }
 func (s *CobaltStrategy) fetch(ctx context.Context, item cobaltItem, dir string, index int) (media.Item, error) {

@@ -10,6 +10,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/jrdev95/super-picos-downloader/internal/downloader"
+	"github.com/jrdev95/super-picos-downloader/internal/logging"
 	"github.com/jrdev95/super-picos-downloader/internal/platform"
 	"github.com/jrdev95/super-picos-downloader/internal/urlutil"
 	"github.com/jrdev95/super-picos-downloader/internal/workspace"
@@ -90,7 +91,7 @@ func (b *Bot) handleURL(message *tgbotapi.Message, link string) {
 		return
 	}
 
-	slog.Info(
+	slog.Debug(
 		"URL recebida",
 		"url", link,
 		"platform", detectedPlatform,
@@ -117,7 +118,7 @@ func (b *Bot) enqueueDownload(
 
 	select {
 	case b.jobs <- job:
-		slog.Info(
+		slog.Debug(
 			"download adicionado à fila",
 			"platform", detectedPlatform,
 			"url", link,
@@ -144,9 +145,22 @@ func (b *Bot) processDownload(
 	link string,
 	detectedPlatform platform.Platform,
 ) {
+	started := time.Now()
+	parentCtx, trace := logging.WithDownloadTrace(parentCtx)
+	outcome, stage := "falha", "workspace"
+	count := 0
+	var failure error
+	defer func() {
+		level := slog.LevelInfo
+		if outcome == "falha" {
+			level = slog.LevelError
+		}
+		slog.Log(parentCtx, level, "download finalizado", "worker_id", parentCtx.Value(workerLogKey{}), "platform", detectedPlatform, "status", outcome, "stage", stage, "items", count, "elapsed", time.Since(started), "attempts", trace.String(), "error", failure)
+	}()
 	ws, err := workspace.New()
 	if err != nil {
-		slog.Error(
+		failure = err
+		slog.Debug(
 			"falha ao criar workspace",
 			"error", err,
 		)
@@ -160,7 +174,8 @@ func (b *Bot) processDownload(
 
 	defer func() {
 		if err := ws.Cleanup(); err != nil {
-			slog.Error(
+			logging.DownloadStep(parentCtx, "limpeza: "+err.Error())
+			slog.Debug(
 				"falha ao limpar workspace",
 				"error", err,
 				"path", ws.Path(),
@@ -174,13 +189,14 @@ func (b *Bot) processDownload(
 	)
 	defer cancel()
 
-	slog.Info(
+	slog.Debug(
 		"iniciando download",
 		"platform", detectedPlatform.DisplayName(),
 		"url", link,
 		"workspace", ws.Path(),
 	)
 
+	stage = "download"
 	result, err := b.manager.Download(
 		ctx,
 		detectedPlatform,
@@ -188,11 +204,15 @@ func (b *Bot) processDownload(
 		ws.Path(),
 	)
 	if err != nil {
+		if trace.String() == "" {
+			failure = err
+		}
 		if downloader.IsNoMediaOnly(err) {
-			slog.Info("publicação sem mídia ignorada", "platform", detectedPlatform, "url", link)
+			outcome = "sem mídia"
+			slog.Debug("publicação sem mídia ignorada", "platform", detectedPlatform, "url", link)
 			return
 		}
-		slog.Error(
+		slog.Debug(
 			"download falhou",
 			"platform", detectedPlatform,
 			"url", link,
@@ -205,19 +225,22 @@ func (b *Bot) processDownload(
 		return
 	}
 
-	slog.Info(
+	slog.Debug(
 		"download concluído",
 		"platform", result.Platform,
 		"items", len(result.Items),
 		"album", result.IsAlbum(),
 	)
 
+	count = len(result.Items)
+	stage = "envio"
 	statusMessage, statusErr := b.sendStatus(
 		message,
 		"⏳ Preparando mídia...",
 	)
 	if statusErr != nil {
-		slog.Error(
+		logging.DownloadStep(parentCtx, "status Telegram: "+statusErr.Error())
+		slog.Debug(
 			"falha ao enviar status de download",
 			"error", statusErr,
 			"chat_id", message.Chat.ID,
@@ -233,7 +256,8 @@ func (b *Bot) processDownload(
 
 	sendStarted := time.Now()
 	if err := b.sendResult(parentCtx, message, result); err != nil {
-		slog.Error(
+		failure = err
+		slog.Debug(
 			"falha ao enviar mídia",
 			"error", err,
 			"chat_id", message.Chat.ID,
@@ -246,7 +270,8 @@ func (b *Bot) processDownload(
 		return
 	}
 
-	slog.Info(
+	outcome = "sucesso"
+	slog.Debug(
 		"mídia enviada com sucesso",
 		"prepare_and_send_elapsed", time.Since(sendStarted),
 		"platform", result.Platform,
@@ -322,7 +347,7 @@ func (b *Bot) reply(message *tgbotapi.Message, text string) {
 	response.ReplyToMessageID = message.MessageID
 
 	if _, err := b.api.Send(response); err != nil {
-		slog.Error(
+		slog.Debug(
 			"falha ao enviar mensagem",
 			"error", err,
 			"chat_id", message.Chat.ID,

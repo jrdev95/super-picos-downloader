@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jrdev95/super-picos-downloader/internal/logging"
 
 	"github.com/jrdev95/super-picos-downloader/internal/media"
 	"github.com/jrdev95/super-picos-downloader/internal/platform"
@@ -45,6 +46,7 @@ func (c *Chain) Download(
 
 		if err == nil && result != nil {
 			if validationErr := result.Validate(); validationErr == nil {
+				logging.DownloadStep(ctx, strategy.Name()+": OK")
 				return result, nil
 			} else {
 				err = fmt.Errorf(
@@ -58,6 +60,7 @@ func (c *Chain) Download(
 			err = ErrNoMedia
 		}
 
+		logging.DownloadStep(ctx, fmt.Sprintf("%s: %v", strategy.Name(), err))
 		attemptErrors = append(
 			attemptErrors,
 			fmt.Errorf(

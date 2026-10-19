@@ -70,7 +70,7 @@ func reduceMedia(ctx context.Context, result *media.Result, run videoRunner) (*m
 			return nil, cleanup, ctx.Err()
 		}
 		if err != nil {
-			slog.Warn("redução opcional falhou; mantendo original", "media_type", item.Type, "error", err)
+			slog.Debug("redução opcional falhou; mantendo original", "media_type", item.Type, "error", err)
 			continue
 		}
 		reduced, err := os.Stat(output)
@@ -83,7 +83,7 @@ func reduceMedia(ctx context.Context, result *media.Result, run videoRunner) (*m
 		}
 		prepared.Items[i].Path = output
 		prepared.Items[i].Filename = filepath.Base(output)
-		slog.Info("mídia reduzida para envio", "media_type", item.Type, "original_bytes", info.Size(), "reduced_bytes", reduced.Size(), "elapsed", time.Since(started))
+		slog.Debug("mídia reduzida para envio", "media_type", item.Type, "original_bytes", info.Size(), "reduced_bytes", reduced.Size(), "elapsed", time.Since(started))
 	}
 	return &prepared, cleanup, nil
 }
