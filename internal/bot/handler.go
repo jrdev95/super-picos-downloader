@@ -148,14 +148,23 @@ func (b *Bot) processDownload(
 	started := time.Now()
 	parentCtx, trace := logging.WithDownloadTrace(parentCtx)
 	outcome, stage := "falha", "workspace"
-	count := 0
 	var failure error
 	defer func() {
 		level := slog.LevelInfo
 		if outcome == "falha" {
 			level = slog.LevelError
 		}
-		slog.Log(parentCtx, level, "worker finalizou download", "worker_id", parentCtx.Value(workerLogKey{}), "platform", detectedPlatform, "status", outcome, "stage", stage, "items", count, "elapsed", time.Since(started), "attempts", trace.String(), "error", failure)
+		attrs := []any{"worker_id", parentCtx.Value(workerLogKey{}), "total_elapsed", time.Since(started)}
+		if outcome != "sucesso" {
+			attrs = append(attrs, "status", outcome, "stage", stage)
+		}
+		if details := trace.Diagnostics(); details != "" {
+			attrs = append(attrs, "attempts", details)
+		}
+		if failure != nil {
+			attrs = append(attrs, "error", failure)
+		}
+		slog.Log(parentCtx, level, "worker finalizou download", attrs...)
 	}()
 	ws, err := workspace.New()
 	if err != nil {
@@ -230,12 +239,10 @@ func (b *Bot) processDownload(
 		"download concluído",
 		"worker_id", parentCtx.Value(workerLogKey{}),
 		"method", trace.SuccessfulMethod(),
-		"platform", result.Platform,
 		"items", len(result.Items),
 		"album", result.IsAlbum(),
 	)
 
-	count = len(result.Items)
 	stage = "envio"
 	statusMessage, statusErr := b.sendStatus(
 		message,
@@ -278,9 +285,6 @@ func (b *Bot) processDownload(
 		"mídia enviada com sucesso",
 		"worker_id", parentCtx.Value(workerLogKey{}),
 		"prepare_and_send_elapsed", time.Since(sendStarted),
-		"platform", result.Platform,
-		"items", len(result.Items),
-		"chat_id", message.Chat.ID,
 	)
 }
 

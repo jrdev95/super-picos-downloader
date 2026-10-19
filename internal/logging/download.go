@@ -43,3 +43,16 @@ func (t *DownloadTrace) SuccessfulMethod() string {
 	}
 	return "direto"
 }
+
+// Diagnostics omits successful strategies already identified in the download event.
+func (t *DownloadTrace) Diagnostics() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var details []string
+	for _, step := range t.steps {
+		if !strings.HasSuffix(step, ": OK") {
+			details = append(details, step)
+		}
+	}
+	return strings.Join(details, "; ")
+}

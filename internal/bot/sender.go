@@ -68,7 +68,7 @@ func (b *Bot) sendResult(
 		if len(result.Items) == 1 {
 			kind = string(result.Items[0].Type)
 		}
-		slog.Info("envio ao Telegram concluído", "worker_id", ctx.Value(workerLogKey{}), "media_type", kind, "items", len(result.Items), "bytes", bytes, "elapsed", time.Since(uploadStarted), "success", sendErr == nil)
+		slog.Info("envio ao Telegram concluído", "worker_id", ctx.Value(workerLogKey{}), "media_type", kind, "bytes", bytes, "elapsed", time.Since(uploadStarted), "success", sendErr == nil)
 	}()
 
 	if len(result.Items) == 1 {
