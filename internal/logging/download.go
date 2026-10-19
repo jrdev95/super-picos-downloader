@@ -32,3 +32,14 @@ func (t *DownloadTrace) String() string {
 	defer t.mu.Unlock()
 	return strings.Join(t.steps, "; ")
 }
+
+func (t *DownloadTrace) SuccessfulMethod() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for i := len(t.steps) - 1; i >= 0; i-- {
+		if strings.HasSuffix(t.steps[i], ": OK") {
+			return strings.TrimSuffix(t.steps[i], ": OK")
+		}
+	}
+	return "direto"
+}

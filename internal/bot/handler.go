@@ -155,7 +155,7 @@ func (b *Bot) processDownload(
 		if outcome == "falha" {
 			level = slog.LevelError
 		}
-		slog.Log(parentCtx, level, "download finalizado", "worker_id", parentCtx.Value(workerLogKey{}), "platform", detectedPlatform, "status", outcome, "stage", stage, "items", count, "elapsed", time.Since(started), "attempts", trace.String(), "error", failure)
+		slog.Log(parentCtx, level, "worker finalizou download", "worker_id", parentCtx.Value(workerLogKey{}), "platform", detectedPlatform, "status", outcome, "stage", stage, "items", count, "elapsed", time.Since(started), "attempts", trace.String(), "error", failure)
 	}()
 	ws, err := workspace.New()
 	if err != nil {
@@ -189,8 +189,9 @@ func (b *Bot) processDownload(
 	)
 	defer cancel()
 
-	slog.Debug(
-		"iniciando download",
+	slog.Info(
+		"URL recebida, iniciando download",
+		"worker_id", parentCtx.Value(workerLogKey{}),
 		"platform", detectedPlatform.DisplayName(),
 		"url", link,
 		"workspace", ws.Path(),
@@ -225,8 +226,10 @@ func (b *Bot) processDownload(
 		return
 	}
 
-	slog.Debug(
+	slog.Info(
 		"download concluído",
+		"worker_id", parentCtx.Value(workerLogKey{}),
+		"method", trace.SuccessfulMethod(),
 		"platform", result.Platform,
 		"items", len(result.Items),
 		"album", result.IsAlbum(),
@@ -271,8 +274,9 @@ func (b *Bot) processDownload(
 	}
 
 	outcome = "sucesso"
-	slog.Debug(
+	slog.Info(
 		"mídia enviada com sucesso",
+		"worker_id", parentCtx.Value(workerLogKey{}),
 		"prepare_and_send_elapsed", time.Since(sendStarted),
 		"platform", result.Platform,
 		"items", len(result.Items),

@@ -19,7 +19,7 @@ func (b *Bot) sendResult(
 	ctx context.Context,
 	message *tgbotapi.Message,
 	result *media.Result,
-) error {
+) (sendErr error) {
 	if message == nil {
 		return errors.New("mensagem de origem não definida")
 	}
@@ -55,6 +55,21 @@ func (b *Bot) sendResult(
 		return err
 	}
 	result = prepared
+	// Um evento agregado mesmo quando o álbum exige vários envios.
+	uploadStarted := time.Now()
+	defer func() {
+		var bytes int64
+		for _, item := range result.Items {
+			if info, err := os.Stat(item.Path); err == nil {
+				bytes += info.Size()
+			}
+		}
+		kind := "album"
+		if len(result.Items) == 1 {
+			kind = string(result.Items[0].Type)
+		}
+		slog.Info("envio ao Telegram concluído", "worker_id", ctx.Value(workerLogKey{}), "media_type", kind, "items", len(result.Items), "bytes", bytes, "elapsed", time.Since(uploadStarted), "success", sendErr == nil)
+	}()
 
 	if len(result.Items) == 1 {
 		return b.sendSingle(

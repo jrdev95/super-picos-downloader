@@ -367,4 +367,4 @@ docker run -d --name super-picos-cobalt --restart unless-stopped --init --read-o
 
 Não monte cookies nem configure COOKIE_PATH. Esse endereço pressupõe que o bot rode no host. Atualize o executável, configure `.env` e reinicie `super-picos.service`. Teste fotos, carrosséis e Reels; os diagnósticos aparecem apenas nos logs.
 
-Logs de downloads: uma linha de início e uma de resumo por trabalho/worker. O resumo contém resultado, duração, itens e tentativas (até 350 caracteres por tentativa). HTTP 400 do Cobalt inclui o código retornado pela API. Detalhes intermediários ficam em nível DEBUG.
+Logs de downloads: até cinco eventos principais por trabalho: início com URL/workspace; conclusão com método, itens e álbum; envio agregado com bytes e duração; confirmação com tempo de preparação/envio; finalização com worker e diagnóstico das tentativas. Cada evento apresenta seus campos em linhas separadas. O envio de álbuns em lotes gera um único evento agregado. HTTP 400 do Cobalt inclui o código retornado pela API.

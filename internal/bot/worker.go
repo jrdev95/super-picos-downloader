@@ -46,7 +46,7 @@ func (b *Bot) worker(
 			return
 
 		case job := <-b.jobs:
-			slog.Info(
+			slog.Debug(
 				"worker iniciou download",
 				"worker_id", workerID,
 				"platform", job.platform,
