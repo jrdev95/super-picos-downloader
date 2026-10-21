@@ -15,6 +15,12 @@ type Downloader struct {
 func New(
 	strategies ...downloader.Strategy,
 ) *Downloader {
+	strategies = append([]downloader.Strategy(nil), strategies...)
+	for i, strategy := range strategies {
+		if _, ok := strategy.(*CobaltStrategy); ok {
+			strategies[i] = &verifiedCobalt{source: strategy, alternatives: downloader.NewChain(strategies[i+1:]...)}
+		}
+	}
 	return &Downloader{
 		chain: downloader.NewChain(
 			strategies...,

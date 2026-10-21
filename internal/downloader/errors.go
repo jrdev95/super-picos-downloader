@@ -21,6 +21,10 @@ func ShouldFallback(err error) bool {
 		return false
 	}
 
+	var terminal interface{ StopFallback() bool }
+	if errors.As(err, &terminal) && terminal.StopFallback() {
+		return false
+	}
 	switch {
 	case errors.Is(err, context.Canceled):
 		return false
