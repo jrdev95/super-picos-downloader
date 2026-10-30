@@ -84,6 +84,7 @@ func main() {
 		externalTools.FFmpeg,
 	)
 	ytdlpStrategy.SetLowMemory(cfg.LowMemory)
+	ytdlpStrategy.SetTwitterCookiesFile(cfg.XCookiesFile)
 
 	galleryDLStrategy := gallerydl.New(
 		externalTools.GalleryDL,

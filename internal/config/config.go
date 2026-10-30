@@ -18,6 +18,7 @@ type Config struct {
 	ReduceMedia          bool
 	LowMemory            bool
 	InstagramCookiesFile string
+	XCookiesFile         string
 	CobaltAPIURL         string
 }
 
@@ -62,6 +63,7 @@ func Load() (*Config, error) {
 		LowMemory:            lowMemory,
 		ReduceMedia:          reduceMedia,
 		InstagramCookiesFile: strings.TrimSpace(os.Getenv("INSTAGRAM_COOKIES_FILE")),
+		XCookiesFile:         strings.TrimSpace(os.Getenv("X_COOKIES_FILE")),
 	}, nil
 }
 

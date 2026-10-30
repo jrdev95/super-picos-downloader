@@ -15,9 +15,10 @@ import (
 )
 
 type Strategy struct {
-	ytdlpPath  string
-	ffmpegPath string
-	lowMemory  bool
+	ytdlpPath          string
+	ffmpegPath         string
+	lowMemory          bool
+	twitterCookiesFile string
 }
 
 func New(ytdlpPath, ffmpegPath string) *Strategy {
@@ -32,6 +33,9 @@ func (s *Strategy) Name() string {
 }
 
 func (s *Strategy) SetLowMemory(enabled bool) { s.lowMemory = enabled }
+
+// SetTwitterCookiesFile configures Netscape cookies for X downloads only.
+func (s *Strategy) SetTwitterCookiesFile(path string) { s.twitterCookiesFile = strings.TrimSpace(path) }
 
 func (s *Strategy) Download(
 	ctx context.Context,
@@ -80,6 +84,13 @@ func (s *Strategy) Download(
 
 	if detectedPlatform == platform.Instagram {
 		args = append([]string{"--ignore-config"}, args...)
+	}
+	if detectedPlatform == platform.Twitter && s.twitterCookiesFile != "" {
+		cookiesFile := strings.TrimSpace(os.ExpandEnv(s.twitterCookiesFile))
+		if _, err := os.Stat(cookiesFile); err != nil {
+			return nil, fmt.Errorf("arquivo de cookies do X indisponível %q: %w", cookiesFile, err)
+		}
+		args = append([]string{"--cookies", cookiesFile}, args...)
 	}
 	if s.lowMemory {
 		args = append([]string{"--postprocessor-args", "ffmpeg_i:-threads 1", "--postprocessor-args", "ffmpeg_o:-threads 1 -filter_threads 1 -filter_complex_threads 1"}, args...)
