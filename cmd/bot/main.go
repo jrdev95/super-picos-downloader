@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"syscall"
+	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/jrdev95/super-picos-downloader/internal/bot"
 	"github.com/jrdev95/super-picos-downloader/internal/config"
@@ -140,29 +147,48 @@ func main() {
 	}
 	defer game.Close()
 
-	telegramBot, err := bot.New(
-		cfg.BotToken,
-		downloadManager,
-		cfg.MaxWorkers,
-		bot.WithMediaReduction(cfg.ReduceMedia),
-		bot.WithLowMemory(cfg.LowMemory),
-		bot.WithMinigame(game),
-	)
-	if err != nil {
-		slog.Error(
-			"falha ao iniciar bot",
-			"error", err,
-		)
-
-		os.Exit(1)
-	}
-
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
 		syscall.SIGTERM,
 	)
 	defer stop()
+
+	var telegramBot *bot.Bot
+	var lastConnectErrorLog time.Time
+	for {
+		telegramBot, err = bot.New(
+			cfg.BotToken,
+			downloadManager,
+			cfg.MaxWorkers,
+			bot.WithMediaReduction(cfg.ReduceMedia),
+			bot.WithLowMemory(cfg.LowMemory),
+			bot.WithMinigame(game),
+		)
+		if err == nil {
+			break
+		}
+		if !retryableTelegramStartupError(err) {
+			slog.Error("falha ao iniciar bot", "error", err)
+			os.Exit(1)
+		}
+
+		now := time.Now()
+		if lastConnectErrorLog.IsZero() || now.Sub(lastConnectErrorLog) >= time.Minute {
+			slog.Warn(
+				"falha ao conectar ao Telegram; nova tentativa em 5s",
+				"error", err,
+			)
+			lastConnectErrorLog = now
+		}
+
+		select {
+		case <-ctx.Done():
+			slog.Info("inicialização cancelada")
+			return
+		case <-time.After(5 * time.Second):
+		}
+	}
 
 	slog.Info("Super Picos Downloader iniciado")
 
@@ -176,4 +202,23 @@ func main() {
 	}
 
 	slog.Info("Super Picos Downloader encerrado")
+}
+
+func retryableTelegramStartupError(err error) bool {
+	var apiErr tgbotapi.Error
+	if errors.As(err, &apiErr) {
+		return apiErr.Code >= http.StatusInternalServerError
+	}
+	var apiErrPointer *tgbotapi.Error
+	if errors.As(err, &apiErrPointer) && apiErrPointer != nil {
+		return apiErrPointer.Code >= http.StatusInternalServerError
+	}
+	var networkErr net.Error
+	if errors.As(err, &networkErr) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "bad gateway") ||
+		strings.Contains(message, "gateway timeout") ||
+		strings.Contains(message, "service unavailable")
 }
