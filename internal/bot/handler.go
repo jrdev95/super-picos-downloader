@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -257,11 +258,13 @@ func (b *Bot) processDownload(
 		)
 	}
 
+	deleteStatusOnReturn := true
 	if statusMessage.MessageID != 0 {
-		defer b.deleteMessage(
-			message.Chat.ID,
-			statusMessage.MessageID,
-		)
+		defer func() {
+			if deleteStatusOnReturn {
+				b.deleteMessage(message.Chat.ID, statusMessage.MessageID)
+			}
+		}()
 	}
 
 	sendStarted := time.Now()
@@ -272,6 +275,20 @@ func (b *Bot) processDownload(
 			"error", err,
 			"chat_id", message.Chat.ID,
 		)
+		if isTelegramGatewayTimeout(err) {
+			if statusMessage.MessageID != 0 {
+				// Do not hold this worker on another Telegram request after an
+				// ambiguous upload timeout. The upload itself is never replayed.
+				deleteStatusOnReturn = false
+				go b.deleteMessage(message.Chat.ID, statusMessage.MessageID)
+			}
+			slog.Warn(
+				"Gateway Timeout no envio; upload não repetido",
+				"worker_id", parentCtx.Value(workerLogKey{}),
+				"chat_id", message.Chat.ID,
+			)
+			return
+		}
 
 		b.reply(
 			message,
@@ -323,6 +340,21 @@ func (b *Bot) deleteMessage(
 			"message_id", messageID,
 		)
 	}
+}
+
+func isTelegramGatewayTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr tgbotapi.Error
+	if errors.As(err, &apiErr) && apiErr.Code == http.StatusGatewayTimeout {
+		return true
+	}
+	var apiErrPointer *tgbotapi.Error
+	if errors.As(err, &apiErrPointer) && apiErrPointer != nil && apiErrPointer.Code == http.StatusGatewayTimeout {
+		return true
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "gateway timeout")
 }
 
 func downloadErrorMessage(err error) string {
