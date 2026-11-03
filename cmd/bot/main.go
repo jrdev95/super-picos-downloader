@@ -169,7 +169,7 @@ func main() {
 			break
 		}
 		if !retryableTelegramStartupError(err) {
-			slog.Error("falha ao iniciar bot", "error", err)
+			slog.Error("falha ao iniciar bot", "error", redactBotToken(err, cfg.BotToken))
 			os.Exit(1)
 		}
 
@@ -177,7 +177,7 @@ func main() {
 		if lastConnectErrorLog.IsZero() || now.Sub(lastConnectErrorLog) >= time.Minute {
 			slog.Warn(
 				"falha ao conectar ao Telegram; nova tentativa em 5s",
-				"error", err,
+				"error", redactBotToken(err, cfg.BotToken),
 			)
 			lastConnectErrorLog = now
 		}
@@ -221,4 +221,14 @@ func retryableTelegramStartupError(err error) bool {
 	return strings.Contains(message, "bad gateway") ||
 		strings.Contains(message, "gateway timeout") ||
 		strings.Contains(message, "service unavailable")
+}
+
+func redactBotToken(err error, token string) string {
+	if err == nil {
+		return ""
+	}
+	if token == "" {
+		return err.Error()
+	}
+	return strings.ReplaceAll(err.Error(), token, "[REDACTED]")
 }
