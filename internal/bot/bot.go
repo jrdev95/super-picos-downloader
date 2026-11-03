@@ -26,6 +26,8 @@ type Bot struct {
 	wg          sync.WaitGroup
 }
 
+const telegramConnectTimeout = 20 * time.Second
+
 func New(
 	token string,
 	manager *downloader.Manager,
@@ -45,13 +47,18 @@ func New(
 		)
 	}
 
-	api, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, newTelegramClient(workers))
+	client := newTelegramClient(workers)
+	client.Timeout = telegramConnectTimeout
+	api, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, client)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"falha ao conectar ao Telegram: %w",
 			err,
 		)
 	}
+	// Bound only the initial getMe request. Upload requests use the same client
+	// afterward without a global timeout, so large media uploads are not cut off.
+	client.Timeout = 0
 
 	slog.Info(
 		"conectado ao Telegram",
