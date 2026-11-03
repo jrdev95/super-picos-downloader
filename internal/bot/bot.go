@@ -94,6 +94,8 @@ func (b *Bot) Run(ctx context.Context) error {
 	}()
 
 	slog.Info("aguardando mensagens")
+	var lastPollError string
+	var lastPollErrorLog time.Time
 
 	for {
 		select {
@@ -105,10 +107,19 @@ func (b *Bot) Run(ctx context.Context) error {
 
 		updates, err := b.api.GetUpdates(updateConfig)
 		if err != nil {
-			slog.Error(
-				"erro ao buscar atualizações do Telegram",
-				"error", err,
-			)
+			now := time.Now()
+			currentPollError := err.Error()
+			shouldLogPollError := currentPollError != lastPollError ||
+				lastPollErrorLog.IsZero() ||
+				now.Sub(lastPollErrorLog) >= time.Minute
+			if shouldLogPollError {
+				slog.Warn(
+					"erro ao buscar atualizações do Telegram; nova tentativa em 3s",
+					"error", currentPollError,
+				)
+				lastPollError = currentPollError
+				lastPollErrorLog = now
+			}
 
 			select {
 			case <-ctx.Done():
@@ -118,6 +129,8 @@ func (b *Bot) Run(ctx context.Context) error {
 				continue
 			}
 		}
+		lastPollError = ""
+		lastPollErrorLog = time.Time{}
 
 		for _, update := range updates {
 			updateConfig.Offset = update.UpdateID + 1
