@@ -53,6 +53,34 @@ func Detect(rawURL string) Platform {
 	}
 }
 
+// IsInstagramProfileURL identifies profile pages and their profile tabs,
+// which do not represent a single media post for the downloader.
+func IsInstagramProfileURL(rawURL string) bool {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil || !matchesDomain(strings.ToLower(parsedURL.Hostname()), "instagram.com") {
+		return false
+	}
+
+	parts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+	if len(parts) == 1 && parts[0] != "" {
+		switch strings.ToLower(parts[0]) {
+		case "accounts", "api", "direct", "explore", "p", "reel", "reels", "share", "stories", "tv":
+			return false
+		default:
+			return true
+		}
+	}
+
+	if len(parts) == 2 {
+		switch strings.ToLower(parts[1]) {
+		case "reels", "tagged", "saved":
+			return true
+		}
+	}
+
+	return false
+}
+
 func matchesDomain(host, domain string) bool {
 	return host == domain || strings.HasSuffix(host, "."+domain)
 }

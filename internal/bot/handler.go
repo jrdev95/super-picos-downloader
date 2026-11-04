@@ -86,6 +86,10 @@ TikTok, Instagram, Threads, X/Twitter, YouTube Shorts e Erome.
 	}
 }
 func (b *Bot) handleURL(message *tgbotapi.Message, link string) {
+	if platform.IsInstagramProfileURL(link) {
+		return
+	}
+
 	detectedPlatform := platform.Detect(link)
 
 	if detectedPlatform == platform.Unknown {
