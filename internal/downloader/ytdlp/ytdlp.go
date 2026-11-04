@@ -81,6 +81,17 @@ func (s *Strategy) Download(
 		"--",
 		url,
 	}
+	if detectedPlatform == platform.YouTube {
+		// Prefer a Telegram-friendly MP4/H.264 stream at 720p or below.
+		// YouTube may otherwise select 4K AV1, which makes the required MP4
+		// conversion extremely slow on small VPS instances.
+		args = append([]string{
+			"--format",
+			"bv*[height<=720][vcodec^=avc1]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[height<=720]",
+			"--merge-output-format",
+			"mp4",
+		}, args...)
+	}
 
 	if detectedPlatform == platform.Instagram {
 		args = append([]string{"--ignore-config"}, args...)
