@@ -304,7 +304,7 @@ func (s *GalleryDLStrategy) runCommand(ctx context.Context, args []string) (stri
 
 func requiresAuthentication(message string) bool {
 	message = strings.ToLower(message)
-	for _, marker := range []string{"loginrequired", "login required", "login_required", "please log in", "authentication required", "cookies are required", "requires authentication", "you must be logged in", "https://www.instagram.com/accounts/login/", "https://instagram.com/accounts/login/"} {
+	for _, marker := range []string{"loginrequired", "login required", "login_required", "please log in", "authentication required", "cookies are required", "requires authentication", "you must be logged in", "401 unauthorized", "http 401", "status 401", "https://www.instagram.com/accounts/login/", "https://instagram.com/accounts/login/"} {
 		if strings.Contains(message, marker) {
 			return true
 		}
